@@ -34,12 +34,12 @@ jobs:
 
             echo "Checking containers..."
 
+            sleep 5
+
             docker compose ps
 
-            if docker compose ps --status exited | grep -q .; then
-              echo "Some containers are not running"
-              docker compose ps
+            if docker compose ps | grep -E "Exited|Restarting"; then
+              echo "❌ Some containers failed"
               exit 1
             fi
-
             echo "Deployment finished"
