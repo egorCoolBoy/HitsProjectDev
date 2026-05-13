@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackHits", "BackHits.csproj", "{ED9A1F56-A96F-DD79-62B0-984325CA204E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ED9A1F56-A96F-DD79-62B0-984325CA204E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ED9A1F56-A96F-DD79-62B0-984325CA204E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ED9A1F56-A96F-DD79-62B0-984325CA204E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ED9A1F56-A96F-DD79-62B0-984325CA204E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C779BF91-8E4F-4D83-AFD1-26F7DBF3EEA9}
+	EndGlobalSection
+EndGlobal
