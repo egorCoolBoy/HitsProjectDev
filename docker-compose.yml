@@ -7,6 +7,14 @@ services:
     ports:
       - "8081:80"
 
+  backend:
+    build:
+      context: ./backend
+    container_name: splitapp-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+
   tgbot:
     build:
       context: ./tgbot
@@ -14,3 +22,4 @@ services:
     restart: unless-stopped
     depends_on:
       - frontend
+      - backend
