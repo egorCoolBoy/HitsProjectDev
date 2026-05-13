@@ -26,11 +26,20 @@ jobs:
             set -e
 
             echo "Pulling latest code..."
-            cd /root/splitapp 
-
+            cd /root/splitapp
             git pull origin ${{ github.ref_name }}
 
             echo "Rebuilding containers..."
             docker compose up -d --build
+
+            echo "Checking containers..."
+
+            docker compose ps
+
+            if docker compose ps --status exited | grep -q .; then
+              echo "Some containers are not running"
+              docker compose ps
+              exit 1
+            fi
 
             echo "Deployment finished"
