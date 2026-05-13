@@ -19,7 +19,8 @@ jobs:
         with:
           host: ${{ secrets.HOST_SERVER }}
           username: ${{ secrets.HOST_USER }}
-          key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.HOST_PASSWORD }}
+          port: 22
 
           script: |
             set -e
