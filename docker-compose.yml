@@ -43,6 +43,8 @@ services:
       context: ./tgbot
     container_name: splitapp-tgbot
     restart: unless-stopped
+    env_file:
+      - ./tgbot/.env
     depends_on:
       - frontend
       - backend
