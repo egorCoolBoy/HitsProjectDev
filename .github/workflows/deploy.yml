@@ -26,7 +26,7 @@ jobs:
             set -e
 
             echo "Pulling latest code..."
-            cd /splitapp 
+            cd /root/splitapp 
 
             git pull origin ${{ github.ref_name }}
 
