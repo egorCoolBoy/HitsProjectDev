@@ -7,11 +7,34 @@ services:
     ports:
       - "8081:80"
 
+  db:
+    image: postgres:16-alpine
+    container_name: splitapp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: backhits_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 890981298e
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d backhits_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   backend:
     build:
       context: ./backend
     container_name: splitapp-backend
     restart: unless-stopped
+    environment:
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=backhits_db;Username=postgres;Password=890981298e
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "8080:8080"
 
@@ -23,3 +46,6 @@ services:
     depends_on:
       - frontend
       - backend
+
+volumes:
+  postgres_data:
