@@ -1,0 +1,16 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    container_name: splitapp-frontend
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+
+  tgbot:
+    build:
+      context: ./tgbot
+    container_name: splitapp-tgbot
+    restart: unless-stopped
+    depends_on:
+      - frontend
