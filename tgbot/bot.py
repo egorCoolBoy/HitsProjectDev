@@ -4,8 +4,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-BOT_TOKEN = os.getenv('BOT_TOKEN')
-TELEGRAM_MINIAPP_URL = os.getenv('TELEGRAM_MINIAPP_URL') or os.getenv('MINIAPP_URL')
+BOT_TOKEN = '6180990883:AAEU4eItTAPT_6Wga8NHMw953g6oUjFnajs'
+TELEGRAM_MINIAPP_URL = 'https://fine-cooks-jump.loca.lt'
 
 if not BOT_TOKEN:
     raise RuntimeError('BOT_TOKEN is not set')
