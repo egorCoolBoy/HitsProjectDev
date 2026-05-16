@@ -1,11 +1,18 @@
-import {useTelegram} from "../hooks/telegram.ts";
+import {useTelegram} from "../hooks/useTelegram.ts";
+import {useAuth} from "../hooks/useAuth.ts";
 
 const HomePage = () => {
 
-    const {tg, user} = useTelegram()
-    console.log(tg)
+    const { initData, user } = useTelegram();
+    const auth = useAuth(initData)
+    if (auth.isPending) {
+        return <div>Loading...</div>;
+    }
+    if (auth.isError) {
+        return <div>Auth failed</div>;
+    }
 
-    const name = user?.toString()
+    const name = user?.first_name
 
     return (
         <>

@@ -7,6 +7,11 @@
   "compilerOptions": {
     "types": [
       "./node_modules/telegram-webapps"
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"]
+    }
   }
 }

@@ -1,4 +1,6 @@
 import api from './api';
+import type {TelegramData} from "../data/TelegramData.ts";
+
 
 interface AuthData {
     initData: string,
@@ -6,12 +8,10 @@ interface AuthData {
 }
 
 const userService = {
-    authentication: (data: AuthData) => {
-        api.post<string>('/auth/telegram', data)
-            .then((response) => {
-                const token = response.data
-                localStorage.setItem('access_token', token)
-            })
+    authentication: async (data: AuthData) => {
+        const response = await api.post<TelegramData>('/auth/telegram', data)
+        const responseData = response.data
+        localStorage.setItem('access_token', responseData.token)
     },
 
     me: async () => {
