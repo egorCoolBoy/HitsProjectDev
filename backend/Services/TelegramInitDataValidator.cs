@@ -51,8 +51,8 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
                 .OrderBy(item => item.Key, StringComparer.Ordinal)
                 .Select(item => $"{item.Key}={item.Value}"));
 
-        using var secretKeyAlgorithm = new HMACSHA256(Encoding.UTF8.GetBytes(_options.BotToken));
-        var secretKey = secretKeyAlgorithm.ComputeHash(Encoding.UTF8.GetBytes("WebAppData"));
+        using var sha256 = SHA256.Create();
+        var secretKey = sha256.ComputeHash(Encoding.UTF8.GetBytes("WebAppData" + _options.BotToken));
 
         using var signatureAlgorithm = new HMACSHA256(secretKey);
         var computedHash = signatureAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(dataCheckString));
