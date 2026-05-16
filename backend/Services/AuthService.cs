@@ -35,6 +35,7 @@ public sealed class AuthService : IAuthService
         }
 
         var telegramUser = _telegramValidator.Validate(request.InitData);
+        
 
         var user = await _dbContext.Users
             .FirstOrDefaultAsync(item => item.TelegramId == telegramUser.TelegramId);

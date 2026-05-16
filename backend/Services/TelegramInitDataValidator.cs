@@ -39,19 +39,14 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
             throw new SecurityException("initData is empty.");
         }
 
-        _logger.LogInformation("Telegram debug: bot username={BotUsername}, bot token={BotToken}", _options.BotUsername, MaskToken(_options.BotToken));
-        _logger.LogInformation("Telegram debug: raw initData={InitData}", initData);
 
         var values = ParseInitData(initData);
-        _logger.LogInformation("Parsed initData params: {Params}", string.Join(", ", values.Keys));
-        _logger.LogInformation("Telegram debug: parsed values={Values}", string.Join(" | ", values.Select(item => $"{item.Key}={item.Value}")));
         
         if (!values.TryGetValue("hash", out var receivedHash) || string.IsNullOrWhiteSpace(receivedHash))
         {
             throw new SecurityException("Telegram initData hash is missing.");
         }
 
-        _logger.LogInformation("Received hash: {Hash}", receivedHash);
 
         ValidateFreshness(values);
 
@@ -62,8 +57,6 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
                 .OrderBy(item => item.Key, StringComparer.Ordinal)
                 .Select(item => $"{item.Key}={item.Value}"));
 
-        _logger.LogInformation("DataCheckString: {DataCheckString}", dataCheckString);
-        _logger.LogInformation("Telegram debug: auth_date={AuthDate}", values.TryGetValue("auth_date", out var authDateValue) ? authDateValue : "<missing>");
 
         using var secretKeyHmac = new HMACSHA256(Encoding.UTF8.GetBytes("WebAppData"));
         var secretKey = secretKeyHmac.ComputeHash(Encoding.UTF8.GetBytes(_options.BotToken));
@@ -72,13 +65,11 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
         var computedHash = signatureAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(dataCheckString));
         var computedHashHex = Convert.ToHexString(computedHash).ToLowerInvariant();
 
-        _logger.LogInformation("Computed hash: {ComputedHash}", computedHashHex);
 
         if (!CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(receivedHash.Trim().ToLowerInvariant()),
                 Encoding.UTF8.GetBytes(computedHashHex)))
         {
-            _logger.LogWarning("Hash mismatch! Expected: {Expected}, Got: {Got}", computedHashHex, receivedHash);
             throw new SecurityException("Telegram initData signature is invalid.");
         }
 
@@ -123,20 +114,7 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
         return result;
     }
 
-    private static string MaskToken(string token)
-    {
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return "<empty>";
-        }
-
-        if (token.Length <= 8)
-        {
-            return new string('*', token.Length);
-        }
-
-        return $"{token[..4]}...{token[^4..]}";
-    }
+    
 
     private void ValidateFreshness(Dictionary<string, string> values)
     {

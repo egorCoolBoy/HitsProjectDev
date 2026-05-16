@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Linq;
 using BackHits.Data;
 using BackHits.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -96,7 +97,14 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await dbContext.Database.MigrateAsync();
+    if (dbContext.Database.GetMigrations().Any())
+    {
+        await dbContext.Database.MigrateAsync();
+    }
+    else
+    {
+        await dbContext.Database.EnsureCreatedAsync();
+    }
 }
 
 // Configure the HTTP request pipeline.
