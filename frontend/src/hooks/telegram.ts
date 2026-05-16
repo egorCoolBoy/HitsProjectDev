@@ -6,7 +6,7 @@ export const useTelegram = () => {
 
     userService.authentication({
         initData: tg.initData,
-        orderId: 0
+        orderId: null
     })
 
     return {
