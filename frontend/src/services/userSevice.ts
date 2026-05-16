@@ -10,12 +10,12 @@ const userService = {
         api.post<string>('/auth/telegram', data)
             .then((response) => {
                 const token = response.data
-                localStorage.setItem('token', token)
+                localStorage.setItem('access_token', token)
             })
     },
 
     me: async () => {
-        return await api.get('/user/me')
+        return await api.get('/users/me')
     }
 }
 
