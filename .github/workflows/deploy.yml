@@ -21,6 +21,7 @@ jobs:
           username: ${{ secrets.HOST_USER }}
           password: ${{ secrets.HOST_PASSWORD }}
           port: 22
+          envs: POSTGRES_PASSWORD,TELEGRAM_BOT_TOKEN,TELEGRAM_MINIAPP_URL,TELEGRAM_BOT_USERNAME
 
           script: |
             set -e
@@ -29,17 +30,41 @@ jobs:
             cd /root/splitapp
             git pull origin ${{ github.ref_name }}
 
+            echo "Writing env files from GitHub Secrets..."
+            cat > backend/.env <<EOF
+            POSTGRES_DB=backhits_db
+            POSTGRES_USER=postgres
+            POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+            ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=backhits_db;Username=postgres;Password=${POSTGRES_PASSWORD}
+
+            Telegram__BotToken=${TELEGRAM_BOT_TOKEN}
+            Telegram__BotUsername=${TELEGRAM_BOT_USERNAME}
+            Telegram__InitDataMaxAgeMinutes=1440
+
+            ASPNETCORE_ENVIRONMENT=Development
+            Jwt__Key=change-this-secret-key-to-at-least-32-characters
+            EOF
+
+            cat > tgbot/.env <<EOF
+            BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+            TELEGRAM_MINIAPP_URL=${TELEGRAM_MINIAPP_URL}
+            EOF
+
             echo "Rebuilding containers..."
             docker compose up -d --build
 
             echo "Checking containers..."
-
             sleep 5
-
             docker compose ps
 
             if docker compose ps | grep -E "Exited|Restarting"; then
-              echo "❌ Some containers failed"
+              echo "Some containers failed"
               exit 1
             fi
             echo "Deployment finished"
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_MINIAPP_URL: ${{ secrets.TELEGRAM_MINIAPP_URL }}
+          TELEGRAM_BOT_USERNAME: ${{ secrets.TELEGRAM_BOT_USERNAME }}
