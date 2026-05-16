@@ -58,7 +58,7 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
         var dataCheckString = string.Join(
             '\n',
             values
-                .Where(item => item.Key != "hash" && item.Key != "signature")
+                .Where(item => item.Key != "hash")
                 .OrderBy(item => item.Key, StringComparer.Ordinal)
                 .Select(item => $"{item.Key}={item.Value}"));
 
