@@ -38,6 +38,8 @@ public sealed class UserResponse
 
     public string? FirstName { get; set; }
 
+    public string? PhotoUrl { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }
@@ -50,6 +52,7 @@ public sealed class UserResponse
             TelegramId = user.TelegramId,
             Username = user.Username,
             FirstName = user.FirstName,
+            PhotoUrl = null,
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt
         };
