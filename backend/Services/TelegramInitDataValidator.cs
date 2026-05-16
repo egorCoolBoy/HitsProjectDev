@@ -54,14 +54,14 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
         var dataCheckString = string.Join(
             '\n',
             values
-                .Where(item => item.Key != "hash")
+                .Where(item => item.Key != "hash" && item.Key != "signature")
                 .OrderBy(item => item.Key, StringComparer.Ordinal)
                 .Select(item => $"{item.Key}={item.Value}"));
 
         _logger.LogInformation("DataCheckString: {DataCheckString}", dataCheckString);
 
-        using var secretKeyHmac = new HMACSHA256(Encoding.UTF8.GetBytes(_options.BotToken));
-        var secretKey = secretKeyHmac.ComputeHash(Encoding.UTF8.GetBytes("WebAppData"));
+        using var secretKeyHmac = new HMACSHA256(Encoding.UTF8.GetBytes("WebAppData"));
+        var secretKey = secretKeyHmac.ComputeHash(Encoding.UTF8.GetBytes(_options.BotToken));
 
         using var signatureAlgorithm = new HMACSHA256(secretKey);
         var computedHash = signatureAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(dataCheckString));
