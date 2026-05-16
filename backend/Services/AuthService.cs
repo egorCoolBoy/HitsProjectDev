@@ -91,12 +91,16 @@ public sealed class AuthService : IAuthService
         }
 
         var token = _jwtTokenService.CreateToken(user.Id);
-        return new AuthTelegramResponse
+        var response = new AuthTelegramResponse
         {
             Token = token,
             User = UserResponse.From(user),
             Order = orderResponse
         };
+
+        response.User.PhotoUrl = telegramUser.PhotoUrl;
+
+        return response;
     }
 
     private static string? Normalize(string? value)

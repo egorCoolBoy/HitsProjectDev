@@ -14,7 +14,7 @@ public interface ITelegramInitDataValidator
     TelegramUserInfo Validate(string initData);
 }
 
-public sealed record TelegramUserInfo(long TelegramId, string? Username, string? FirstName);
+public sealed record TelegramUserInfo(long TelegramId, string? Username, string? FirstName, string? PhotoUrl);
 
 public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
 {
@@ -84,7 +84,7 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
             throw new SecurityException("Telegram initData user payload is invalid.");
         }
 
-        return new TelegramUserInfo(user.Id, user.Username, user.FirstName);
+        return new TelegramUserInfo(user.Id, user.Username, user.FirstName, user.PhotoUrl);
     }
 
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
@@ -135,15 +135,18 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
         }
     }
 
-    private sealed class TelegramUserPayload
-    {
-        [JsonPropertyName("id")]
-        public long Id { get; set; }
+        private sealed class TelegramUserPayload
+        {
+            [JsonPropertyName("id")]
+            public long Id { get; set; }
 
-        [JsonPropertyName("username")]
-        public string? Username { get; set; }
+            [JsonPropertyName("username")]
+            public string? Username { get; set; }
 
-        [JsonPropertyName("first_name")]
-        public string? FirstName { get; set; }
-    }
+            [JsonPropertyName("first_name")]
+            public string? FirstName { get; set; }
+
+            [JsonPropertyName("photo_url")]
+            public string? PhotoUrl { get; set; }
+        }
 }
