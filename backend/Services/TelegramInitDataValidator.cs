@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace BackHits.Services;
@@ -18,10 +19,12 @@ public sealed record TelegramUserInfo(long TelegramId, string? Username, string?
 public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
 {
     private readonly TelegramOptions _options;
+    private readonly ILogger<TelegramInitDataValidator> _logger;
 
-    public TelegramInitDataValidator(IOptions<TelegramOptions> options)
+    public TelegramInitDataValidator(IOptions<TelegramOptions> options, ILogger<TelegramInitDataValidator> logger)
     {
         _options = options.Value;
+        _logger = logger;
     }
 
     public TelegramUserInfo Validate(string initData)
@@ -37,10 +40,14 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
         }
 
         var values = ParseInitData(initData);
+        _logger.LogInformation("Parsed initData params: {Params}", string.Join(", ", values.Keys));
+        
         if (!values.TryGetValue("hash", out var receivedHash) || string.IsNullOrWhiteSpace(receivedHash))
         {
             throw new SecurityException("Telegram initData hash is missing.");
         }
+
+        _logger.LogInformation("Received hash: {Hash}", receivedHash);
 
         ValidateFreshness(values);
 
@@ -51,17 +58,22 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
                 .OrderBy(item => item.Key, StringComparer.Ordinal)
                 .Select(item => $"{item.Key}={item.Value}"));
 
-        using var sha256 = SHA256.Create();
-        var secretKey = sha256.ComputeHash(Encoding.UTF8.GetBytes("WebAppData" + _options.BotToken));
+        _logger.LogInformation("DataCheckString: {DataCheckString}", dataCheckString);
+
+        using var secretKeyHmac = new HMACSHA256(Encoding.UTF8.GetBytes(_options.BotToken));
+        var secretKey = secretKeyHmac.ComputeHash(Encoding.UTF8.GetBytes("WebAppData"));
 
         using var signatureAlgorithm = new HMACSHA256(secretKey);
         var computedHash = signatureAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(dataCheckString));
         var computedHashHex = Convert.ToHexString(computedHash).ToLowerInvariant();
 
+        _logger.LogInformation("Computed hash: {ComputedHash}", computedHashHex);
+
         if (!CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(receivedHash.Trim().ToLowerInvariant()),
                 Encoding.UTF8.GetBytes(computedHashHex)))
         {
+            _logger.LogWarning("Hash mismatch! Expected: {Expected}, Got: {Got}", computedHashHex, receivedHash);
             throw new SecurityException("Telegram initData signature is invalid.");
         }
 
