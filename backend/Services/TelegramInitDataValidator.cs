@@ -39,8 +39,12 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
             throw new SecurityException("initData is empty.");
         }
 
+        _logger.LogInformation("Telegram debug: bot username={BotUsername}, bot token={BotToken}", _options.BotUsername, MaskToken(_options.BotToken));
+        _logger.LogInformation("Telegram debug: raw initData={InitData}", initData);
+
         var values = ParseInitData(initData);
         _logger.LogInformation("Parsed initData params: {Params}", string.Join(", ", values.Keys));
+        _logger.LogInformation("Telegram debug: parsed values={Values}", string.Join(" | ", values.Select(item => $"{item.Key}={item.Value}")));
         
         if (!values.TryGetValue("hash", out var receivedHash) || string.IsNullOrWhiteSpace(receivedHash))
         {
@@ -59,6 +63,7 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
                 .Select(item => $"{item.Key}={item.Value}"));
 
         _logger.LogInformation("DataCheckString: {DataCheckString}", dataCheckString);
+        _logger.LogInformation("Telegram debug: auth_date={AuthDate}", values.TryGetValue("auth_date", out var authDateValue) ? authDateValue : "<missing>");
 
         using var secretKeyHmac = new HMACSHA256(Encoding.UTF8.GetBytes("WebAppData"));
         var secretKey = secretKeyHmac.ComputeHash(Encoding.UTF8.GetBytes(_options.BotToken));
@@ -116,6 +121,21 @@ public sealed class TelegramInitDataValidator : ITelegramInitDataValidator
         }
 
         return result;
+    }
+
+    private static string MaskToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return "<empty>";
+        }
+
+        if (token.Length <= 8)
+        {
+            return new string('*', token.Length);
+        }
+
+        return $"{token[..4]}...{token[^4..]}";
     }
 
     private void ValidateFreshness(Dictionary<string, string> values)
