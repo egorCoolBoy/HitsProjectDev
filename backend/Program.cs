@@ -89,7 +89,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromMinutes(1)
         };
     });
-
+//aaaa
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
