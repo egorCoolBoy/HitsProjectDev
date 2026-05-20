@@ -54,15 +54,26 @@ jobs:
             echo "Rebuilding containers..."
             docker compose up -d --build
 
+            echo "Rebuilding containers..."
+            docker compose up -d --build
+            
+            echo "Waiting for services to be healthy..."
+            sleep 10
+            
             echo "Checking containers..."
-            sleep 5
             docker compose ps
-
+            
             if docker compose ps | grep -E "Exited|Restarting"; then
-              echo "Some containers failed"
+              echo "❌ ERROR: Some containers failed to start"
+              echo "=== Docker Compose Logs ==="
+              docker compose logs --tail=100
+              echo "=== Docker Compose Status ==="
+              docker compose ps -a
               exit 1
             fi
-            echo "Deployment finished"
+            
+            echo "✅ Deployment finished"
+            
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
