@@ -9,7 +9,7 @@ const HomePage = () => {
         return <div>Loading...</div>;
     }
     if (auth.isError) {
-        return <div>Auth failed</div>;
+        return <div>Auth failed: {auth.error.message}</div>;
     }
 
     const name = user?.first_name
