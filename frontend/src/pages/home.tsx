@@ -16,7 +16,7 @@ const HomePage = () => {
 
     return (
         <>
-            {name ? <h1>Hello, {name}!</h1> : <h1>I don't know who you are</h1>}
+            {name ? <h1>Hello, {name}!</h1> : <h1>I don't know who you are -_-</h1>}
         </>
     )
 }
