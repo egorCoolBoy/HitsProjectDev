@@ -5,7 +5,7 @@ import userService from "../services/userSevice.ts";
 export function useAuth(initData: string, orderId: number | null = null) {
 
     return useQuery({
-        queryKey: ['auth'],
+        queryKey: ['auth', initData, orderId],
         queryFn: () => {
             if (!initData) {
                 throw new Error('No initData');

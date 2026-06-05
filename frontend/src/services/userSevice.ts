@@ -12,6 +12,7 @@ const userService = {
         const response = await api.post<TelegramData>('/auth/telegram', data)
         const responseData = response.data
         localStorage.setItem('access_token', responseData.token)
+        return responseData
     },
 
     me: async () => {
