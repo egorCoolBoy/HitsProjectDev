@@ -4,11 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BackHits.Services;
 
-public interface IUserService
-{
-    Task<UserResponse> GetMeAsync(long userId);
-}
-
 public sealed class UserService : IUserService
 {
     private readonly AppDbContext _dbContext;

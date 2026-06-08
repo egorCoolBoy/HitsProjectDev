@@ -13,6 +13,10 @@ public sealed class AppDbContext : DbContext
 
     public DbSet<Order> Orders => Set<Order>();
 
+    public DbSet<OrderExpense> OrderExpenses => Set<OrderExpense>();
+
+    public DbSet<OrderExpenseUser> OrderExpenseUsers => Set<OrderExpenseUser>();
+
     public DbSet<OrderUser> OrderUsers => Set<OrderUser>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -20,46 +24,34 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.ToTable("users");
-            entity.HasKey(item => item.Id);
-            entity.Property(item => item.Id).HasColumnName("id");
-            entity.Property(item => item.TelegramId).HasColumnName("telegram_id");
-            entity.Property(item => item.Username).HasColumnName("username");
-            entity.Property(item => item.FirstName).HasColumnName("first_name");
-            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
-            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
             entity.HasIndex(item => item.TelegramId).IsUnique();
         });
 
         modelBuilder.Entity<Order>(entity =>
         {
             entity.ToTable("orders");
-            entity.HasKey(item => item.Id);
-            entity.Property(item => item.Id).HasColumnName("id");
-            entity.Property(item => item.Title).HasColumnName("title");
-            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+        });
+
+        modelBuilder.Entity<OrderExpense>(entity =>
+        {
+            entity.ToTable("order_expenses");
+            entity.Property(item => item.Price).HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<OrderExpenseUser>(entity =>
+        {
+            entity.ToTable("order_expense_users");
+            entity.Property(item => item.Share).HasPrecision(5, 4);
+
+            entity.HasKey(item => new { item.OrderExpenseId, item.UserId });
         });
 
         modelBuilder.Entity<OrderUser>(entity =>
         {
             entity.ToTable("order_users");
-            entity.HasKey(item => item.Id);
-            entity.Property(item => item.Id).HasColumnName("id");
-            entity.Property(item => item.UserId).HasColumnName("user_id");
-            entity.Property(item => item.OrderId).HasColumnName("order_id");
-            entity.Property(item => item.Role).HasColumnName("role").HasConversion<string>();
-            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.Role).HasConversion<string>();
 
             entity.HasIndex(item => new { item.UserId, item.OrderId }).IsUnique();
-
-            entity.HasOne(item => item.User)
-                .WithMany(item => item.OrderUsers)
-                .HasForeignKey(item => item.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(item => item.Order)
-                .WithMany(item => item.OrderUsers)
-                .HasForeignKey(item => item.OrderId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

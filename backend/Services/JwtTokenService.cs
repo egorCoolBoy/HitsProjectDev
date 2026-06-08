@@ -6,11 +6,6 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace BackHits.Services;
 
-public interface IJwtTokenService
-{
-    string CreateToken(long userId);
-}
-
 public sealed class JwtTokenService : IJwtTokenService
 {
     private readonly JwtOptions _options;

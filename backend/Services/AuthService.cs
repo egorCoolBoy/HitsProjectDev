@@ -6,11 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BackHits.Services;
 
-public interface IAuthService
-{
-    Task<AuthTelegramResponse> AuthenticateTelegramAsync(AuthTelegramRequest request);
-}
-
 public sealed class AuthService : IAuthService
 {
     private readonly AppDbContext _dbContext;

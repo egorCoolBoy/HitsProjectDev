@@ -6,17 +6,6 @@ using Microsoft.Extensions.Options;
 
 namespace BackHits.Services;
 
-public interface IOrderService
-{
-    Task<OrderResponse> CreateAsync(long userId, string? title);
-
-    Task<OrderResponse> GetByIdAsync(long userId, long orderId);
-
-    Task<InviteLinkResponse> CreateInviteLinkAsync(long userId, long orderId);
-
-    Task<OrderMembershipResponse> JoinAsync(long userId, long orderId);
-}
-
 public sealed class OrderService : IOrderService
 {
     private readonly AppDbContext _dbContext;
@@ -69,6 +58,16 @@ public sealed class OrderService : IOrderService
         return OrderResponse.From(order);
     }
 
+    public async Task<IReadOnlyList<OrderResponse>> GetMyAsync(long userId)
+    {
+        var orders = await _dbContext.Orders
+            .Where(order => order.OrderUsers.Any(membership => membership.UserId == userId))
+            .OrderByDescending(item => item.Id)
+            .ToListAsync();
+
+        return orders.Select(OrderResponse.From).ToList();
+    }
+
     public async Task<InviteLinkResponse> CreateInviteLinkAsync(long userId, long orderId)
     {
         var order = await _dbContext.Orders.FirstOrDefaultAsync(item => item.Id == orderId);
@@ -91,12 +90,89 @@ public sealed class OrderService : IOrderService
         };
     }
 
+    public async Task DeleteAsync(long userId, long orderId)
+    {
+        var order = await _dbContext.Orders.FirstOrDefaultAsync(item => item.Id == orderId);
+        if (order is null)
+        {
+            throw new OrderNotFoundException(orderId);
+        }
+
+        var membership = await _dbContext.OrderUsers
+            .FirstOrDefaultAsync(item => item.UserId == userId && item.OrderId == orderId);
+
+        if (membership is null || membership.Role != OrderRole.Creator)
+        {
+            throw new OrderAccessDeniedException(orderId, userId);
+        }
+
+        // Remove related memberships first (cascade might handle it depending on DB)
+        var members = _dbContext.OrderUsers.Where(item => item.OrderId == orderId);
+        _dbContext.OrderUsers.RemoveRange(members);
+        _dbContext.Orders.Remove(order);
+        await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task<OrderResponse> SetStatusAsync(long userId, long orderId, bool isClosed)
+    {
+        var order = await _dbContext.Orders.FirstOrDefaultAsync(item => item.Id == orderId);
+        if (order is null)
+        {
+            throw new OrderNotFoundException(orderId);
+        }
+
+        var membership = await _dbContext.OrderUsers
+            .FirstOrDefaultAsync(item => item.UserId == userId && item.OrderId == orderId);
+
+        if (membership is null || membership.Role != OrderRole.Creator)
+        {
+            throw new OrderAccessDeniedException(orderId, userId);
+        }
+
+        order.IsClosed = isClosed;
+        await _dbContext.SaveChangesAsync();
+
+        return OrderResponse.From(order);
+    }
+
+    public async Task<OrderResponse> UpdateTitleAsync(long userId, long orderId, string? title)
+    {
+        var order = await _dbContext.Orders.FirstOrDefaultAsync(item => item.Id == orderId);
+        if (order is null)
+        {
+            throw new OrderNotFoundException(orderId);
+        }
+
+        if (order.IsClosed)
+        {
+            throw new InvalidOperationException("Order is closed and cannot be modified.");
+        }
+
+        var membership = await _dbContext.OrderUsers
+            .FirstOrDefaultAsync(item => item.UserId == userId && item.OrderId == orderId);
+
+        if (membership is null || membership.Role != OrderRole.Creator)
+        {
+            throw new OrderAccessDeniedException(orderId, userId);
+        }
+
+        order.Title = Normalize(title);
+        await _dbContext.SaveChangesAsync();
+
+        return OrderResponse.From(order);
+    }
+
     public async Task<OrderMembershipResponse> JoinAsync(long userId, long orderId)
     {
         var order = await _dbContext.Orders.FirstOrDefaultAsync(item => item.Id == orderId);
         if (order is null)
         {
             throw new OrderNotFoundException(orderId);
+        }
+
+        if (order.IsClosed)
+        {
+            throw new InvalidOperationException("Order is closed and cannot be modified.");
         }
 
         var membership = await _dbContext.OrderUsers

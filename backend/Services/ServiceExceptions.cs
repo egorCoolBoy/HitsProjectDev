@@ -23,3 +23,11 @@ public sealed class OrderAccessDeniedException : Exception
     {
     }
 }
+
+public sealed class OrderExpenseNotFoundException : Exception
+{
+    public OrderExpenseNotFoundException(long expenseId)
+        : base($"Order expense {expenseId} was not found.")
+    {
+    }
+}

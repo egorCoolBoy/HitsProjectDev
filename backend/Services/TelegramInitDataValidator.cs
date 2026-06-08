@@ -9,11 +9,6 @@ using Microsoft.Extensions.Options;
 
 namespace BackHits.Services;
 
-public interface ITelegramInitDataValidator
-{
-    TelegramUserInfo Validate(string initData);
-}
-
 public sealed record TelegramUserInfo(long TelegramId, string? Username, string? FirstName, string? PhotoUrl);
 
 public sealed class TelegramInitDataValidator : ITelegramInitDataValidator

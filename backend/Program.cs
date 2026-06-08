@@ -62,6 +62,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IOrderExpenseService, OrderExpenseService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddCors(options =>
@@ -97,14 +98,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (dbContext.Database.GetMigrations().Any())
-    {
-        await dbContext.Database.MigrateAsync();
-    }
-    else
-    {
-        await dbContext.Database.EnsureCreatedAsync();
-    }
+    await dbContext.Database.MigrateAsync();
 }
 
 // Configure the HTTP request pipeline.
