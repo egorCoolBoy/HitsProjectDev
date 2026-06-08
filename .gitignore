@@ -1,2 +1,5 @@
 backend/.env
 tgbot/.env
+# Игнорировать папки сборки
+obj/
+Debug/
