@@ -9,13 +9,14 @@ type OrderProps = {
   order: OrderData;
   onUpdateOrder: (order: OrderData) => void;
   onBack: () => void;
+  onCreateInviteLink: (orderId: string) => Promise<string>;
 };
 
 type Tab = 'items' | 'participants' | 'summary';
 
 const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DFE6E9', '#A29BFE', '#FD79A8'];
 
-export function Order({ order, onUpdateOrder, onBack }: OrderProps) {
+export function Order({ order, onUpdateOrder, onBack, onCreateInviteLink }: OrderProps) {
   const [activeTab, setActiveTab] = useState<Tab>('items');
 
   const handleAddItem = () => {
@@ -247,8 +248,10 @@ export function Order({ order, onUpdateOrder, onBack }: OrderProps) {
 
           {activeTab === 'participants' && (
             <ParticipantList
+              orderId={order.id}
               participants={order.participants}
               onDeleteParticipant={handleDeleteParticipant}
+              onCreateInviteLink={onCreateInviteLink}
               isClosed={order.isClosed}
             />
           )}

@@ -108,12 +108,24 @@ function AppContent() {
   );
 
   const [currentOrder, setCurrentOrder] = useState<OrderData | null>(null);
+  const [inviteOrderOpened, setInviteOrderOpened] = useState(false);
   const queryClientHook = useQueryClient();
   const ordersQuery = useQuery({
     queryKey: ['orders', userProfile.name],
     queryFn: async () => {
       const apiOrders = await orderService.list();
-      return apiOrders.map((order) => mapOrderToData(order, userProfile));
+      const mappedOrders = apiOrders.map((order) => mapOrderToData(order, userProfile));
+
+      if (orderIdFromUrl && !inviteOrderOpened) {
+        const invitedOrder = await loadOrder(orderIdFromUrl.toString());
+        setCurrentOrder(invitedOrder);
+        setInviteOrderOpened(true);
+        return mappedOrders.some((order) => order.id === invitedOrder.id)
+          ? mappedOrders.map((order) => (order.id === invitedOrder.id ? invitedOrder : order))
+          : [invitedOrder, ...mappedOrders];
+      }
+
+      return mappedOrders;
     },
     enabled: auth.isSuccess,
   });
@@ -217,6 +229,15 @@ function AppContent() {
     }
   };
 
+  const handleCreateInviteLink = async (orderId: string) => {
+    const response = await orderService.createInviteLink(toNumberId(orderId));
+    if (!response.url) {
+      throw new Error('Backend не вернул ссылку приглашения');
+    }
+
+    return response.url;
+  };
+
   if (auth.isPending) {
     return (
       <div className="min-h-screen grid place-items-center bg-[#f5f5f5] p-6 text-center text-gray-600">
@@ -262,7 +283,12 @@ function AppContent() {
           onDeleteOrder={handleDeleteOrder}
         />
       ) : (
-        <Order order={currentOrder} onUpdateOrder={handleUpdateOrder} onBack={() => setCurrentOrder(null)} />
+        <Order
+          order={currentOrder}
+          onUpdateOrder={handleUpdateOrder}
+          onBack={() => setCurrentOrder(null)}
+          onCreateInviteLink={handleCreateInviteLink}
+        />
       )}
     </div>
   );
