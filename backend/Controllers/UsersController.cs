@@ -12,10 +12,12 @@ namespace BackHits.Controllers;
 public sealed class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly IOrderService _orderService;
 
-    public UsersController(IUserService userService)
+    public UsersController(IUserService userService, IOrderService orderService)
     {
         _userService = userService;
+        _orderService = orderService;
     }
 
     [HttpGet("me")]
@@ -30,5 +32,12 @@ public sealed class UsersController : ControllerBase
         {
             return NotFound(new { message = exception.Message });
         }
+    }
+
+    [HttpGet("{userId:long}/orders")]
+    public async Task<ActionResult<IReadOnlyList<OrderResponse>>> GetOrdersByUserId(long userId)
+    {
+        var orders = await _orderService.GetByUserIdAsync(userId);
+        return Ok(orders);
     }
 }

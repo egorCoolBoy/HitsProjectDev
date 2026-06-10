@@ -95,6 +95,8 @@ public sealed class OrderResponse
 
     public bool IsClosed { get; set; }
 
+    public IReadOnlyList<OrderParticipantResponse> Participants { get; set; } = Array.Empty<OrderParticipantResponse>();
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public static OrderResponse From(Order order)
@@ -104,7 +106,33 @@ public sealed class OrderResponse
             Id = order.Id,
             Title = order.Title,
             IsClosed = order.IsClosed,
+            Participants = order.OrderUsers
+                .OrderBy(item => item.CreatedAt)
+                .Select(OrderParticipantResponse.From)
+                .ToList(),
             CreatedAt = order.CreatedAt
+        };
+    }
+}
+
+public sealed class OrderParticipantResponse
+{
+    public long Id { get; set; }
+
+    public OrderRole Role { get; set; }
+
+    public UserResponse User { get; set; } = new();
+
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public static OrderParticipantResponse From(OrderUser membership)
+    {
+        return new OrderParticipantResponse
+        {
+            Id = membership.User.Id,
+            Role = membership.Role,
+            User = UserResponse.From(membership.User),
+            CreatedAt = membership.CreatedAt
         };
     }
 }

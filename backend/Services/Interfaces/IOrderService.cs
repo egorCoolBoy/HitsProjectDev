@@ -10,6 +10,8 @@ public interface IOrderService
 
     Task<IReadOnlyList<OrderResponse>> GetMyAsync(long userId);
 
+    Task<IReadOnlyList<OrderResponse>> GetByUserIdAsync(long userId);
+
     Task<InviteLinkResponse> CreateInviteLinkAsync(long userId, long orderId);
 
     Task<OrderMembershipResponse> JoinAsync(long userId, long orderId);

@@ -43,12 +43,13 @@ public sealed class OrderService : IOrderService
         });
         await _dbContext.SaveChangesAsync();
 
-        return OrderResponse.From(order);
+        var createdOrder = await GetOrderWithParticipantsAsync(order.Id);
+        return OrderResponse.From(createdOrder ?? order);
     }
 
     public async Task<OrderResponse> GetByIdAsync(long userId, long orderId)
     {
-        var order = await _dbContext.Orders.FirstOrDefaultAsync(item => item.Id == orderId);
+        var order = await GetOrderWithParticipantsAsync(orderId);
         if (order is null)
         {
             throw new OrderNotFoundException(orderId);
@@ -61,6 +62,20 @@ public sealed class OrderService : IOrderService
     public async Task<IReadOnlyList<OrderResponse>> GetMyAsync(long userId)
     {
         var orders = await _dbContext.Orders
+            .Include(order => order.OrderUsers)
+            .ThenInclude(membership => membership.User)
+            .Where(order => order.OrderUsers.Any(membership => membership.UserId == userId))
+            .OrderByDescending(item => item.Id)
+            .ToListAsync();
+
+        return orders.Select(OrderResponse.From).ToList();
+    }
+
+    public async Task<IReadOnlyList<OrderResponse>> GetByUserIdAsync(long userId)
+    {
+        var orders = await _dbContext.Orders
+            .Include(order => order.OrderUsers)
+            .ThenInclude(membership => membership.User)
             .Where(order => order.OrderUsers.Any(membership => membership.UserId == userId))
             .OrderByDescending(item => item.Id)
             .ToListAsync();
@@ -70,7 +85,7 @@ public sealed class OrderService : IOrderService
 
     public async Task<InviteLinkResponse> CreateInviteLinkAsync(long userId, long orderId)
     {
-        var order = await _dbContext.Orders.FirstOrDefaultAsync(item => item.Id == orderId);
+        var order = await GetOrderWithParticipantsAsync(orderId);
         if (order is null)
         {
             throw new OrderNotFoundException(orderId);
@@ -115,7 +130,7 @@ public sealed class OrderService : IOrderService
 
     public async Task<OrderResponse> SetStatusAsync(long userId, long orderId, bool isClosed)
     {
-        var order = await _dbContext.Orders.FirstOrDefaultAsync(item => item.Id == orderId);
+        var order = await GetOrderWithParticipantsAsync(orderId);
         if (order is null)
         {
             throw new OrderNotFoundException(orderId);
@@ -137,7 +152,7 @@ public sealed class OrderService : IOrderService
 
     public async Task<OrderResponse> UpdateTitleAsync(long userId, long orderId, string? title)
     {
-        var order = await _dbContext.Orders.FirstOrDefaultAsync(item => item.Id == orderId);
+        var order = await GetOrderWithParticipantsAsync(orderId);
         if (order is null)
         {
             throw new OrderNotFoundException(orderId);
@@ -203,6 +218,14 @@ public sealed class OrderService : IOrderService
         {
             throw new OrderAccessDeniedException(orderId, userId);
         }
+    }
+
+    private Task<Order?> GetOrderWithParticipantsAsync(long orderId)
+    {
+        return _dbContext.Orders
+            .Include(order => order.OrderUsers)
+            .ThenInclude(membership => membership.User)
+            .FirstOrDefaultAsync(item => item.Id == orderId);
     }
 
     private static string? Normalize(string? value)
