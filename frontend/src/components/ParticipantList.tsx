@@ -2,23 +2,36 @@ import { Trash2, Share2 } from 'lucide-react';
 import type { Participant } from '../app/App';
 
 type ParticipantListProps = {
+  orderId: string;
   participants: Participant[];
   onDeleteParticipant: (participantId: string) => void;
+  onCreateInviteLink: (orderId: string) => Promise<string>;
   isClosed?: boolean;
 };
 
-export function ParticipantList({ participants, onDeleteParticipant, isClosed = false }: ParticipantListProps) {
-  const handleShare = () => {
-    const shareUrl = window.location.href;
+export function ParticipantList({
+  orderId,
+  participants,
+  onDeleteParticipant,
+  onCreateInviteLink,
+  isClosed = false,
+}: ParticipantListProps) {
+  const handleShare = async () => {
+    try {
+      const shareUrl = await onCreateInviteLink(orderId);
+
     if (navigator.share) {
-      navigator.share({
+      await navigator.share({
         title: 'Присоединяйтесь к заказу в SplitBot',
         text: 'Нажмите на ссылку, чтобы присоединиться к совместному заказу',
         url: shareUrl,
       });
     } else {
-      navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(shareUrl);
       alert('Ссылка скопирована в буфер обмена!');
+    }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Не удалось создать ссылку приглашения');
     }
   };
 
