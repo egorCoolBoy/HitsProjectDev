@@ -4,7 +4,25 @@ export type ApiOrder = {
   id: number;
   title: string | null;
   isClosed: boolean;
+  participants: ApiOrderParticipant[];
   createdAt: string;
+};
+
+export type ApiOrderParticipant = {
+  id: number;
+  role: 'creator' | 'member';
+  user: ApiUser;
+  createdAt: string;
+};
+
+export type ApiUser = {
+  id: number;
+  telegramId: number;
+  username: string | null;
+  firstName: string | null;
+  photoUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ApiOrderExpense = {

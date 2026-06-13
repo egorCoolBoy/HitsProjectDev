@@ -51,7 +51,7 @@ export type UserProfile = {
 };
 
 const DEFAULT_USER: UserProfile = { name: 'Пользователь', avatar: '👤' };
-const CURRENT_USER_COLOR = '#FF6B6B';
+const PARTICIPANT_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DFE6E9', '#A29BFE', '#FD79A8'];
 
 const queryClient = new QueryClient();
 
@@ -59,29 +59,61 @@ function toNumberId(id: string) {
   return Number.parseInt(id, 10);
 }
 
-function createCurrentParticipant(userProfile: UserProfile): Participant {
+function getParticipantColor(id: string) {
+  const numericId = Number.parseInt(id, 10);
+  const index = Number.isNaN(numericId) ? 0 : Math.abs(numericId) % PARTICIPANT_COLORS.length;
+  return PARTICIPANT_COLORS[index];
+}
+
+function createCurrentParticipant(userProfile: UserProfile, currentUserId: number | null): Participant {
+  const id = currentUserId?.toString() ?? 'me';
   return {
-    id: 'me',
+    id,
     name: userProfile.name,
-    color: CURRENT_USER_COLOR,
+    color: getParticipantColor(id),
   };
 }
 
-function mapExpenseToItem(expense: ApiOrderExpense): OrderItem {
+function getParticipantName(participant: ApiOrder['participants'][number]) {
+  return participant.user.firstName || participant.user.username || `Пользователь ${participant.user.id}`;
+}
+
+function mapParticipants(order: ApiOrder, userProfile: UserProfile, currentUserId: number | null): Participant[] {
+  if (!order.participants?.length) {
+    return [createCurrentParticipant(userProfile, currentUserId)];
+  }
+
+  return order.participants.map((participant) => {
+    const id = participant.user.id.toString();
+    return {
+      id,
+      name: getParticipantName(participant),
+      color: getParticipantColor(id),
+    };
+  });
+}
+
+function mapExpenseToItem(expense: ApiOrderExpense, currentUserId: number | null): OrderItem {
+  const currentParticipantId = currentUserId?.toString() ?? 'me';
   return {
     id: expense.id.toString(),
     name: expense.title || 'Позиция',
     price: expense.totalPrice || expense.price * expense.quantity,
-    participants: expense.isParticipating ? [{ participantId: 'me', portion: 1 }] : [],
+    participants: expense.isParticipating ? [{ participantId: currentParticipantId, portion: 1 }] : [],
   };
 }
 
-function mapOrderToData(order: ApiOrder, userProfile: UserProfile, expenses: ApiOrderExpense[] = []): OrderData {
+function mapOrderToData(
+  order: ApiOrder,
+  userProfile: UserProfile,
+  currentUserId: number | null,
+  expenses: ApiOrderExpense[] = [],
+): OrderData {
   return {
     id: order.id.toString(),
     name: order.title || 'Новый заказ',
-    participants: [createCurrentParticipant(userProfile)],
-    items: expenses.map(mapExpenseToItem),
+    participants: mapParticipants(order, userProfile, currentUserId),
+    items: expenses.map((expense) => mapExpenseToItem(expense, currentUserId)),
     createdAt: new Date(order.createdAt).getTime(),
     payments: [],
     isClosed: order.isClosed,
@@ -99,6 +131,7 @@ function AppContent() {
     return Number.isNaN(parsed) ? null : parsed;
   }, []);
   const auth = useAuth(initData, orderIdFromUrl);
+  const currentUserId = auth.data?.user?.id ?? null;
   const userProfile: UserProfile = useMemo(
     () => ({
       ...DEFAULT_USER,
@@ -114,7 +147,7 @@ function AppContent() {
     queryKey: ['orders', userProfile.name],
     queryFn: async () => {
       const apiOrders = await orderService.list();
-      const mappedOrders = apiOrders.map((order) => mapOrderToData(order, userProfile));
+      const mappedOrders = apiOrders.map((order) => mapOrderToData(order, userProfile, currentUserId));
 
       if (orderIdFromUrl && !inviteOrderOpened) {
         const invitedOrder = await loadOrder(orderIdFromUrl.toString());
@@ -137,9 +170,9 @@ function AppContent() {
         orderService.getById(numericOrderId),
         orderService.listExpenses(numericOrderId),
       ]);
-      return mapOrderToData(apiOrder, userProfile, expenses);
+      return mapOrderToData(apiOrder, userProfile, currentUserId, expenses);
     },
-    [userProfile],
+    [currentUserId, userProfile],
   );
 
   const refreshCurrentOrder = useCallback(
@@ -156,7 +189,7 @@ function AppContent() {
 
   const handleCreateOrder = async (order: OrderData) => {
     const createdOrder = await orderService.create({ title: order.name });
-    const mappedOrder = mapOrderToData(createdOrder, userProfile);
+    const mappedOrder = mapOrderToData(createdOrder, userProfile, currentUserId);
     queryClientHook.setQueryData<OrderData[]>(['orders', userProfile.name], (current) => [mappedOrder, ...(current ?? [])]);
     setCurrentOrder(mappedOrder);
   };
@@ -198,8 +231,9 @@ function AppContent() {
         });
       }
 
-      const currentShare = currentItem.participants.find((participant) => participant.participantId === 'me')?.portion || 0;
-      const updatedShare = item.participants.find((participant) => participant.participantId === 'me')?.portion || 0;
+      const currentParticipantId = currentUserId?.toString() ?? 'me';
+      const currentShare = currentItem.participants.find((participant) => participant.participantId === currentParticipantId)?.portion || 0;
+      const updatedShare = item.participants.find((participant) => participant.participantId === currentParticipantId)?.portion || 0;
       if (updatedShare !== currentShare) {
         await orderService.toggleExpenseParticipation(orderId, numericExpenseId, updatedShare);
       }
