@@ -56,7 +56,7 @@ builder.Services.AddSingleton<ITelegramInitDataValidator, TelegramInitDataValida
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    var connectionString = builder.Configuration.GetConnectionString("DebugConnection")
         ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
     options.UseNpgsql(connectionString);
 });
@@ -64,7 +64,9 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IOrderExpenseService, OrderExpenseService>();
 builder.Services.AddScoped<IUserService, UserService>();
-
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IDebtCalculationService, DebtCalculationService>();
+builder.Services.AddScoped<IDebtService, DebtService>();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

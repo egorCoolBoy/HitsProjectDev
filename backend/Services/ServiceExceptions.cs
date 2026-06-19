@@ -31,3 +31,19 @@ public sealed class OrderExpenseNotFoundException : Exception
     {
     }
 }
+
+public sealed class DebtNotFoundException : Exception
+{
+    public DebtNotFoundException(long debtId)
+        : base($"Debt {debtId} was not found.")
+    {
+    }
+}
+
+public sealed class PaymentNotFoundException : Exception
+{
+    public PaymentNotFoundException(long paymentId)
+        : base($"Payment {paymentId} was not found.")
+    {
+    }
+}

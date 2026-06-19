@@ -146,11 +146,19 @@ public sealed class OrderExpenseService : IOrderExpenseService
 
     private async Task<OrderExpenseResponse> MapExpenseAsync(long userId, OrderExpense expense)
     {
-        var participantCount = await _dbContext.OrderExpenseUsers.CountAsync(item => item.OrderExpenseId == expense.Id);
-        var isParticipating = await _dbContext.OrderExpenseUsers
-            .AnyAsync(item => item.OrderExpenseId == expense.Id && item.UserId == userId);
+        var participants = await _dbContext.OrderExpenseUsers
+            .Include(item => item.User)
+            .Where(item => item.OrderExpenseId == expense.Id)
+            .OrderBy(item => item.CreatedAt)
+            .ToListAsync();
 
-        return OrderExpenseResponse.From(expense, participantCount, isParticipating);
+        var participantResponses = participants
+            .Select(OrderExpenseParticipantResponse.From)
+            .ToList();
+
+        var isParticipating = participants.Any(item => item.UserId == userId);
+
+        return OrderExpenseResponse.From(expense, isParticipating, participantResponses);
     }
 
     private async Task<IReadOnlyList<OrderExpenseResponse>> MapExpensesAsync(long userId, IReadOnlyList<OrderExpense> expenses)
@@ -161,24 +169,29 @@ public sealed class OrderExpenseService : IOrderExpenseService
         }
 
         var expenseIds = expenses.Select(item => item.Id).ToArray();
-        var participantCounts = await _dbContext.OrderExpenseUsers
+        var participants = await _dbContext.OrderExpenseUsers
+            .Include(item => item.User)
             .Where(item => expenseIds.Contains(item.OrderExpenseId))
-            .GroupBy(item => item.OrderExpenseId)
-            .Select(group => new { OrderExpenseId = group.Key, Count = group.Count() })
-            .ToDictionaryAsync(item => item.OrderExpenseId, item => item.Count);
-
-        var participatingExpenseIds = await _dbContext.OrderExpenseUsers
-            .Where(item => expenseIds.Contains(item.OrderExpenseId) && item.UserId == userId)
-            .Select(item => item.OrderExpenseId)
+            .OrderBy(item => item.CreatedAt)
             .ToListAsync();
 
-        var participatingSet = participatingExpenseIds.ToHashSet();
+        var participantsByExpenseId = participants
+            .GroupBy(item => item.OrderExpenseId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(OrderExpenseParticipantResponse.From).ToList());
 
         return expenses
-            .Select(item => OrderExpenseResponse.From(
-                item,
-                participantCounts.TryGetValue(item.Id, out var count) ? count : 0,
-                participatingSet.Contains(item.Id)))
+            .Select(item =>
+            {
+                var participantResponses = participantsByExpenseId.TryGetValue(item.Id, out var list)
+                    ? (IReadOnlyList<OrderExpenseParticipantResponse>)list
+                    : Array.Empty<OrderExpenseParticipantResponse>();
+
+                var isParticipating = participantResponses.Any(participant => participant.UserId == userId);
+
+                return OrderExpenseResponse.From(item, isParticipating, participantResponses);
+            })
             .ToList();
     }
 
