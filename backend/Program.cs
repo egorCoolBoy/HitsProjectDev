@@ -64,7 +64,9 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IOrderExpenseService, OrderExpenseService>();
 builder.Services.AddScoped<IUserService, UserService>();
-
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IDebtCalculationService, DebtCalculationService>();
+builder.Services.AddScoped<IDebtService, DebtService>();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

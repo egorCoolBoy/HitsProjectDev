@@ -3,6 +3,7 @@ using System;
 using BackHits.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackHits.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260619100643_Debts")]
+    partial class Debts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -173,40 +176,6 @@ namespace BackHits.Migrations
                     b.ToTable("order_users", (string)null);
                 });
 
-            modelBuilder.Entity("BackHits.Domain.Payment", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("OrderId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("OrderId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("payments", (string)null);
-                });
-
             modelBuilder.Entity("BackHits.Domain.User", b =>
                 {
                     b.Property<long>("Id")
@@ -253,7 +222,7 @@ namespace BackHits.Migrations
                         .IsRequired();
 
                     b.HasOne("BackHits.Domain.Order", "Order")
-                        .WithMany("Debts")
+                        .WithMany()
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -314,34 +283,11 @@ namespace BackHits.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("BackHits.Domain.Payment", b =>
-                {
-                    b.HasOne("BackHits.Domain.Order", "Order")
-                        .WithMany("Payments")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BackHits.Domain.User", "User")
-                        .WithMany("Payments")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("BackHits.Domain.Order", b =>
                 {
-                    b.Navigation("Debts");
-
                     b.Navigation("OrderExpenses");
 
                     b.Navigation("OrderUsers");
-
-                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("BackHits.Domain.OrderExpense", b =>
@@ -352,8 +298,6 @@ namespace BackHits.Migrations
             modelBuilder.Entity("BackHits.Domain.User", b =>
                 {
                     b.Navigation("OrderUsers");
-
-                    b.Navigation("Payments");
                 });
 #pragma warning restore 612, 618
         }

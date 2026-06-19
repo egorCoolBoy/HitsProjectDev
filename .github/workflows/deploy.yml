@@ -49,6 +49,10 @@ jobs:
             cat > tgbot/.env <<EOF
             BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
             TELEGRAM_MINIAPP_URL=${TELEGRAM_MINIAPP_URL}
+            BACKEND_API_URL=http://backend:8080
+            DEBT_REMINDER_INITIAL_DELAY_SECONDS=0
+            DEBT_REMINDER_INTERVAL_SECONDS=86400
+            DEBT_REMINDER_POLL_SECONDS=60
             EOF
 
             echo "Rebuilding containers..."

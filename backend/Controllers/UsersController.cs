@@ -35,9 +35,12 @@ public sealed class UsersController : ControllerBase
     }
 
     [HttpGet("{userId:long}/orders")]
-    public async Task<ActionResult<IReadOnlyList<OrderResponse>>> GetOrdersByUserId(long userId)
+    public async Task<ActionResult<IReadOnlyList<OrderResponse>>> GetOrdersByUserId(
+        long userId,
+        [FromQuery] OrderStatusFilter status = OrderStatusFilter.All,
+        [FromQuery] SortDirection sortDirection = SortDirection.Desc)
     {
-        var orders = await _orderService.GetByUserIdAsync(userId);
+        var orders = await _orderService.GetByUserIdAsync(userId, status, sortDirection);
         return Ok(orders);
     }
 }
