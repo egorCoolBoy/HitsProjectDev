@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { ArrowLeft, Plus, Users, Calculator } from 'lucide-react';
-import type { OrderData, OrderItem, Participant } from '../app/App';
 import { ItemList } from './ItemList';
 import { ParticipantList } from './ParticipantList';
 import { Summary } from './Summary';
+import { UI_MESSAGES } from '../config/constants';
+import { isValidPrice, createOrderItem, createParticipant } from '../utils/orderHelpers';
+import type { OrderData } from '../types';
 
 type OrderProps = {
   order: OrderData;
@@ -14,14 +16,12 @@ type OrderProps = {
 
 type Tab = 'items' | 'participants' | 'summary';
 
-const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DFE6E9', '#A29BFE', '#FD79A8'];
-
 export function Order({ order, onUpdateOrder, onBack, onCreateInviteLink }: OrderProps) {
   const [activeTab, setActiveTab] = useState<Tab>('items');
 
   const handleAddItem = () => {
     if (order.isClosed) {
-      alert('Счёт закрыт. Изменения невозможны.');
+      alert(UI_MESSAGES.ALERT_ORDER_CLOSED);
       return;
     }
 
@@ -32,18 +32,12 @@ export function Order({ order, onUpdateOrder, onBack, onCreateInviteLink }: Orde
     if (!itemPrice) return;
 
     const price = parseFloat(itemPrice);
-    if (isNaN(price) || price <= 0) {
-      alert('Введите корректную цену');
+    if (!isValidPrice(price)) {
+      alert(UI_MESSAGES.ALERT_INVALID_PRICE);
       return;
     }
 
-    const newItem: OrderItem = {
-      id: Date.now().toString(),
-      name: itemName,
-      price,
-      participants: [],
-    };
-
+    const newItem = createOrderItem(itemName, price);
     onUpdateOrder({
       ...order,
       items: [...order.items, newItem],
@@ -52,19 +46,14 @@ export function Order({ order, onUpdateOrder, onBack, onCreateInviteLink }: Orde
 
   const handleAddParticipant = () => {
     if (order.isClosed) {
-      alert('Счёт закрыт. Изменения невозможны.');
+      alert(UI_MESSAGES.ALERT_ORDER_CLOSED);
       return;
     }
 
     const participantName = prompt('Имя участника:');
     if (!participantName) return;
 
-    const newParticipant: Participant = {
-      id: Date.now().toString(),
-      name: participantName,
-      color: COLORS[order.participants.length % COLORS.length],
-    };
-
+    const newParticipant = createParticipant(participantName, order.participants.length);
     onUpdateOrder({
       ...order,
       participants: [...order.participants, newParticipant],
@@ -108,7 +97,7 @@ export function Order({ order, onUpdateOrder, onBack, onCreateInviteLink }: Orde
 
   const handleSplitEvenly = (itemId: string) => {
     if (order.isClosed) {
-      alert('Счёт закрыт. Изменения невозможны.');
+      alert(UI_MESSAGES.ALERT_ORDER_CLOSED);
       return;
     }
 
@@ -134,7 +123,7 @@ export function Order({ order, onUpdateOrder, onBack, onCreateInviteLink }: Orde
   };
 
   const handleDeleteItem = (itemId: string) => {
-    if (confirm('Удалить эту позицию?')) {
+    if (confirm(UI_MESSAGES.CONFIRM_DELETE_ITEM)) {
       onUpdateOrder({
         ...order,
         items: order.items.filter((item) => item.id !== itemId),
@@ -144,11 +133,11 @@ export function Order({ order, onUpdateOrder, onBack, onCreateInviteLink }: Orde
 
   const handleDeleteParticipant = (participantId: string) => {
     if (order.participants.length === 1) {
-      alert('Нельзя удалить последнего участника');
+      alert(UI_MESSAGES.CONFIRM_LAST_PARTICIPANT);
       return;
     }
 
-    if (confirm('Удалить этого участника?')) {
+    if (confirm(UI_MESSAGES.CONFIRM_DELETE_PARTICIPANT)) {
       const updatedItems = order.items.map((item) => ({
         ...item,
         participants: item.participants.filter((p) => p.participantId !== participantId),
@@ -166,6 +155,7 @@ export function Order({ order, onUpdateOrder, onBack, onCreateInviteLink }: Orde
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f5f5]">
+      {/* Header */}
       <div className="bg-[#0088cc] text-white p-4 shadow-md">
         <div className="max-w-md mx-auto">
           <div className="flex items-center gap-3 mb-2">
@@ -184,55 +174,10 @@ export function Order({ order, onUpdateOrder, onBack, onCreateInviteLink }: Orde
         </div>
       </div>
 
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-md mx-auto flex">
-          <button
-            onClick={() => setActiveTab('items')}
-            className={`flex-1 py-3 px-4 font-medium transition-colors relative ${
-              activeTab === 'items' ? 'text-[#0088cc]' : 'text-gray-500'
-            }`}
-          >
-            <span className="flex items-center justify-center gap-2">
-              <Plus className="size-4" />
-              Позиции
-            </span>
-            {activeTab === 'items' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0088cc]" />
-            )}
-          </button>
+      {/* Tabs */}
+      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-          <button
-            onClick={() => setActiveTab('participants')}
-            className={`flex-1 py-3 px-4 font-medium transition-colors relative ${
-              activeTab === 'participants' ? 'text-[#0088cc]' : 'text-gray-500'
-            }`}
-          >
-            <span className="flex items-center justify-center gap-2">
-              <Users className="size-4" />
-              Участники
-            </span>
-            {activeTab === 'participants' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0088cc]" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('summary')}
-            className={`flex-1 py-3 px-4 font-medium transition-colors relative ${
-              activeTab === 'summary' ? 'text-[#0088cc]' : 'text-gray-500'
-            }`}
-          >
-            <span className="flex items-center justify-center gap-2">
-              <Calculator className="size-4" />
-              Расчёт
-            </span>
-            {activeTab === 'summary' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0088cc]" />
-            )}
-          </button>
-        </div>
-      </div>
-
+      {/* Content */}
       <div className="flex-1 overflow-auto pb-20">
         <div className="max-w-md mx-auto p-4">
           {activeTab === 'items' && (
@@ -260,31 +205,79 @@ export function Order({ order, onUpdateOrder, onBack, onCreateInviteLink }: Orde
         </div>
       </div>
 
+      {/* Action Button */}
       {!order.isClosed && activeTab !== 'summary' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
-          <div className="max-w-md mx-auto">
-            {activeTab === 'items' && (
-              <button
-                onClick={handleAddItem}
-                className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 font-medium flex items-center justify-center gap-2 hover:bg-[#0077bb] transition-colors"
-              >
-                <Plus className="size-5" />
-                Добавить позицию
-              </button>
-            )}
-
-            {activeTab === 'participants' && (
-              <button
-                onClick={handleAddParticipant}
-                className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 font-medium flex items-center justify-center gap-2 hover:bg-[#0077bb] transition-colors"
-              >
-                <Plus className="size-5" />
-                Добавить участника
-              </button>
-            )}
-          </div>
-        </div>
+        <FixedActionButton activeTab={activeTab} onAddItem={handleAddItem} onAddParticipant={handleAddParticipant} />
       )}
+    </div>
+  );
+}
+
+interface TabNavigationProps {
+  activeTab: Tab;
+  onTabChange: (tab: Tab) => void;
+}
+
+function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
+  const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
+    { id: 'items', label: 'Позиции', icon: <Plus className="size-4" /> },
+    { id: 'participants', label: 'Участники', icon: <Users className="size-4" /> },
+    { id: 'summary', label: 'Расчёт', icon: <Calculator className="size-4" /> },
+  ];
+
+  return (
+    <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+      <div className="max-w-md mx-auto flex">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            className={`flex-1 py-3 px-4 font-medium transition-colors relative ${
+              activeTab === tab.id ? 'text-[#0088cc]' : 'text-gray-500'
+            }`}
+          >
+            <span className="flex items-center justify-center gap-2">
+              {tab.icon}
+              {tab.label}
+            </span>
+            {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0088cc]" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface FixedActionButtonProps {
+  activeTab: Tab;
+  onAddItem: () => void;
+  onAddParticipant: () => void;
+}
+
+function FixedActionButton({ activeTab, onAddItem, onAddParticipant }: FixedActionButtonProps) {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
+      <div className="max-w-md mx-auto">
+        {activeTab === 'items' && (
+          <button
+            onClick={onAddItem}
+            className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 font-medium flex items-center justify-center gap-2 hover:bg-[#0077bb] transition-colors"
+          >
+            <Plus className="size-5" />
+            Добавить позицию
+          </button>
+        )}
+
+        {activeTab === 'participants' && (
+          <button
+            onClick={onAddParticipant}
+            className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 font-medium flex items-center justify-center gap-2 hover:bg-[#0077bb] transition-colors"
+          >
+            <Plus className="size-5" />
+            Добавить участника
+          </button>
+        )}
+      </div>
     </div>
   );
 }
