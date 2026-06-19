@@ -1,14 +1,33 @@
+import { useState } from 'react';
 import { DollarSign, Users, CreditCard, Lock } from 'lucide-react';
-import { calculateParticipantTotals, calculateDebts } from '../utils/calculators';
-import { calculateOrderTotal } from '../utils/orderHelpers';
-import type { OrderData } from '../types';
+import {
+  calculateParticipantTotals,
+  calculateDebts,
+  calculateOrderTotal,
+  hasInvalidItemPortions,
+} from '../utils/orderCalculations';
+import { UI_MESSAGES, VALIDATION } from '../config/constants';
+import { ConfirmDialog } from './ui/ConfirmDialog';
+import { FixedBottomBar } from './ui/FixedBottomBar';
+import { MoneyAmount } from './ui/MoneyAmount';
+import { ParticipantAvatar } from './ui/ParticipantAvatar';
+import type { DebtRelation, OrderData, ParticipantTotal } from '../types';
 
 type SummaryProps = {
   order: OrderData;
   onUpdateOrder: (order: OrderData) => void;
+  onCloseOrder: () => Promise<void>;
 };
 
-export function Summary({ order, onUpdateOrder }: SummaryProps) {
+export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const totals = calculateParticipantTotals(order);
+  const debts = calculateDebts(order);
+  const grandTotal = calculateOrderTotal(order.items);
+  const totalPaid = order.payments.reduce((sum, p) => sum + p.amount, 0);
+
   const handlePaymentChange = (participantId: string, value: string) => {
     const amount = parseFloat(value) || 0;
     const existingPayments = order.payments.filter((p) => p.participantId !== participantId);
@@ -16,12 +35,6 @@ export function Summary({ order, onUpdateOrder }: SummaryProps) {
       ...order,
       payments: [...existingPayments, { participantId, amount }],
     });
-  };
-
-  const handleCloseOrder = () => {
-    if (confirm('Закрыть счёт? После этого нельзя будет изменять заказ.')) {
-      onUpdateOrder({ ...order, isClosed: true });
-    }
   };
 
   const handleSettleDebt = (debtorId: string, creditorId: string) => {
@@ -33,11 +46,6 @@ export function Summary({ order, onUpdateOrder }: SummaryProps) {
     });
   };
 
-  const totals = calculateParticipantTotals(order);
-  const debts = calculateDebts(order);
-  const grandTotal = calculateOrderTotal(order.items);
-  const totalPaid = order.payments.reduce((sum, p) => sum + p.amount, 0);
-
   if (order.items.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -47,16 +55,11 @@ export function Summary({ order, onUpdateOrder }: SummaryProps) {
     );
   }
 
-  const hasInvalidPortions = order.items.some((item) => {
-    const totalPortions = item.participants.reduce((sum, p) => sum + p.portion, 0);
-    return item.participants.length > 0 && Math.abs(totalPortions - 1) > 0.01;
-  });
-
   return (
     <div className="space-y-4 pb-20">
       <TotalCard grandTotal={grandTotal} totalPaid={totalPaid} />
 
-      {hasInvalidPortions && (
+      {hasInvalidItemPortions(order) && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-sm font-medium text-red-800">
             ⚠️ У некоторых позиций сумма частей не равна 1. Исправьте на вкладке &quot;Позиции&quot;.
@@ -64,58 +67,68 @@ export function Summary({ order, onUpdateOrder }: SummaryProps) {
         </div>
       )}
 
-      <div className="space-y-3">
+      <section className="space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <Users className="size-5 text-gray-600" />
           <h2 className="font-semibold text-gray-800">Кто сколько должен</h2>
         </div>
 
         {totals.map((participant) => (
-          <ParticipantCard
+          <ParticipantBalanceCard
             key={participant.id}
             participant={participant}
             isClosed={order.isClosed}
             onPaymentChange={handlePaymentChange}
           />
         ))}
-      </div>
+      </section>
 
-      {!order.isClosed && totals.some((t) => Math.abs(t.balance) > 0.01) && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
-          <div className="max-w-md mx-auto">
-            <button
-              onClick={handleCloseOrder}
-              className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 font-semibold flex items-center justify-center gap-2 hover:bg-[#0077bb] transition-colors"
-            >
-              <Lock className="size-5" />
-              Закрыть счёт
-            </button>
-          </div>
-        </div>
+      {!order.isClosed && totals.some((t) => Math.abs(t.balance) > VALIDATION.PORTION_EPSILON) && (
+        <FixedBottomBar>
+          <button
+            onClick={() => setCloseDialogOpen(true)}
+            className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 font-semibold flex items-center justify-center gap-2 hover:bg-[#0077bb] transition-colors"
+          >
+            <Lock className="size-5" />
+            Закрыть счёт
+          </button>
+        </FixedBottomBar>
       )}
 
       {order.isClosed && debts.length > 0 && (
-        <div className="space-y-3">
+        <section className="space-y-3">
           <h2 className="font-semibold text-gray-800">Кто кому должен</h2>
-          {debts.map((debt, index) => (
-            <DebtCard
-              key={index}
+          {debts.map((debt) => (
+            <SettlementDebtCard
+              key={`${debt.fromId}-${debt.toId}`}
               debt={debt}
               onSettle={() => handleSettleDebt(debt.fromId, debt.toId)}
             />
           ))}
-        </div>
+        </section>
       )}
+
+      <ConfirmDialog
+        open={closeDialogOpen}
+        title="Закрыть счёт"
+        message={UI_MESSAGES.CONFIRM_CLOSE_ORDER}
+        confirmLabel={isClosing ? 'Закрытие...' : 'Закрыть'}
+        onConfirm={async () => {
+          setIsClosing(true);
+          try {
+            await onCloseOrder();
+            setCloseDialogOpen(false);
+          } finally {
+            setIsClosing(false);
+          }
+        }}
+        onCancel={() => !isClosing && setCloseDialogOpen(false)}
+      />
     </div>
   );
 }
 
-interface TotalCardProps {
-  grandTotal: number;
-  totalPaid: number;
-}
-
-function TotalCard({ grandTotal, totalPaid }: TotalCardProps) {
+function TotalCard({ grandTotal, totalPaid }: { grandTotal: number; totalPaid: number }) {
   return (
     <div className="bg-gradient-to-br from-[#0088cc] to-[#0066aa] text-white rounded-xl p-6 shadow-lg">
       <div className="flex items-center gap-2 mb-3">
@@ -128,7 +141,7 @@ function TotalCard({ grandTotal, totalPaid }: TotalCardProps) {
           <span className="text-white/80">Оплачено:</span>
           <span className="font-semibold">{totalPaid.toFixed(2)} ₽</span>
         </div>
-        {Math.abs(totalPaid - grandTotal) > 0.01 && (
+        {Math.abs(totalPaid - grandTotal) > VALIDATION.PORTION_EPSILON && (
           <div className="flex items-center justify-between">
             <span className="text-white/80">Осталось:</span>
             <span className="font-semibold">{(grandTotal - totalPaid).toFixed(2)} ₽</span>
@@ -139,39 +152,37 @@ function TotalCard({ grandTotal, totalPaid }: TotalCardProps) {
   );
 }
 
-interface ParticipantCardProps {
-  participant: any;
+function ParticipantBalanceCard({
+  participant,
+  isClosed,
+  onPaymentChange,
+}: {
+  participant: ParticipantTotal;
   isClosed: boolean;
   onPaymentChange: (participantId: string, value: string) => void;
-}
+}) {
+  const balanceAbs = Math.abs(participant.balance);
+  const hasBalance = balanceAbs > VALIDATION.PORTION_EPSILON;
 
-function ParticipantCard({ participant, isClosed, onPaymentChange }: ParticipantCardProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div
-              className="size-10 rounded-full flex items-center justify-center text-white font-semibold"
-              style={{ backgroundColor: participant.color }}
-            >
-              {participant.name.charAt(0).toUpperCase()}
-            </div>
+            <ParticipantAvatar name={participant.name} color={participant.color} />
             <span className="font-medium text-gray-800">{participant.name}</span>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-[#0088cc]">{participant.shouldPay.toFixed(2)} ₽</p>
-          </div>
+          <MoneyAmount value={participant.shouldPay} className="text-2xl font-bold text-[#0088cc]" />
         </div>
 
         {participant.items.length > 0 && (
           <div className="pt-3 border-t border-gray-100 mb-3">
             <p className="text-xs text-gray-500 mb-2">Позиции:</p>
             <div className="space-y-1">
-              {participant.items.map((item: any, index: number) => (
-                <div key={index} className="flex justify-between text-sm">
+              {participant.items.map((item) => (
+                <div key={item.name} className="flex justify-between text-sm">
                   <span className="text-gray-600">{item.name}</span>
-                  <span className="text-gray-800 font-medium">{item.share.toFixed(2)} ₽</span>
+                  <MoneyAmount value={item.share} className="text-gray-800 font-medium" />
                 </div>
               ))}
             </div>
@@ -196,13 +207,26 @@ function ParticipantCard({ participant, isClosed, onPaymentChange }: Participant
             />
           </div>
           <div className="flex items-center justify-between">
-            <span className={`text-sm font-medium ${participant.balance > 0.01 ? 'text-green-600' : participant.balance < -0.01 ? 'text-red-600' : 'text-gray-600'}`}>
-              {participant.balance > 0.01 ? 'Переплатил:' : participant.balance < -0.01 ? 'Недоплатил:' : 'Расчёт сошёлся'}
+            <span
+              className={`text-sm font-medium ${
+                participant.balance > VALIDATION.PORTION_EPSILON
+                  ? 'text-green-600'
+                  : participant.balance < -VALIDATION.PORTION_EPSILON
+                    ? 'text-red-600'
+                    : 'text-gray-600'
+              }`}
+            >
+              {participant.balance > VALIDATION.PORTION_EPSILON
+                ? 'Переплатил:'
+                : participant.balance < -VALIDATION.PORTION_EPSILON
+                  ? 'Недоплатил:'
+                  : 'Расчёт сошёлся'}
             </span>
-            {Math.abs(participant.balance) > 0.01 && (
-              <span className={`text-lg font-bold ${participant.balance > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {Math.abs(participant.balance).toFixed(2)} ₽
-              </span>
+            {hasBalance && (
+              <MoneyAmount
+                value={balanceAbs}
+                className={`text-lg font-bold ${participant.balance > 0 ? 'text-green-600' : 'text-red-600'}`}
+              />
             )}
           </div>
         </div>
@@ -211,12 +235,7 @@ function ParticipantCard({ participant, isClosed, onPaymentChange }: Participant
   );
 }
 
-interface DebtCardProps {
-  debt: any;
-  onSettle: () => void;
-}
-
-function DebtCard({ debt, onSettle }: DebtCardProps) {
+function SettlementDebtCard({ debt, onSettle }: { debt: DebtRelation; onSettle: () => void }) {
   return (
     <div
       className={`bg-white rounded-xl shadow-sm border overflow-hidden ${
@@ -226,38 +245,23 @@ function DebtCard({ debt, onSettle }: DebtCardProps) {
       <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1">
-            <div
-              className="size-8 rounded-full flex items-center justify-center text-white text-sm font-semibold"
-              style={{ backgroundColor: debt.fromColor }}
-            >
-              {debt.fromName.charAt(0).toUpperCase()}
-            </div>
+            <ParticipantAvatar name={debt.fromName} color={debt.fromColor} size="sm" />
             <span className="text-sm font-medium text-gray-800">{debt.fromName}</span>
             <span className="text-gray-400">→</span>
-            <div
-              className="size-8 rounded-full flex items-center justify-center text-white text-sm font-semibold"
-              style={{ backgroundColor: debt.toColor }}
-            >
-              {debt.toName.charAt(0).toUpperCase()}
-            </div>
+            <ParticipantAvatar name={debt.toName} color={debt.toColor} size="sm" />
             <span className="text-sm font-medium text-gray-800">{debt.toName}</span>
           </div>
-          <div className="text-right ml-3">
-            <p className="text-lg font-bold text-[#0088cc]">{debt.amount.toFixed(2)} ₽</p>
-          </div>
+          <MoneyAmount value={debt.amount} className="text-lg font-bold text-[#0088cc] ml-3" />
         </div>
-        {!debt.settled && (
+        {!debt.settled ? (
           <button
             onClick={onSettle}
             className="w-full mt-3 bg-green-500 text-white rounded-lg py-2 text-sm font-medium hover:bg-green-600 transition-colors"
           >
             Погасить долг
           </button>
-        )}
-        {debt.settled && (
-          <div className="mt-3 text-center text-sm font-medium text-green-600">
-            ✓ Долг погашен
-          </div>
+        ) : (
+          <div className="mt-3 text-center text-sm font-medium text-green-600">✓ Долг погашен</div>
         )}
       </div>
     </div>

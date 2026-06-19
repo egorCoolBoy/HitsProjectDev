@@ -1,6 +1,7 @@
 import { Trash2, Users } from 'lucide-react';
-import { calculateTotalPortions, isPortionValid } from '../utils/calculators';
-import { isValidPortion } from '../utils/orderHelpers';
+import { calculateTotalPortions, isPortionValid } from '../utils/orderCalculations';
+import { isValidPortion } from '../utils/validation';
+import { ParticipantAvatar } from './ui/ParticipantAvatar';
 import type { OrderItem, Participant } from '../types';
 
 type ItemListProps = {
@@ -137,12 +138,7 @@ function ParticipantInput({ participant, itemId, portion, onPortionChange, disab
   return (
     <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
       <div className="flex items-center gap-2 flex-1">
-        <div
-          className="size-8 rounded-full flex items-center justify-center text-white text-sm font-semibold"
-          style={{ backgroundColor: participant.color }}
-        >
-          {participant.name.charAt(0).toUpperCase()}
-        </div>
+        <ParticipantAvatar name={participant.name} color={participant.color} size="sm" />
         <span className="text-sm font-medium text-gray-800">{participant.name}</span>
       </div>
 

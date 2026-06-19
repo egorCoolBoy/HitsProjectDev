@@ -1,22 +1,23 @@
-import { Trash2, Share2 } from 'lucide-react';
+import { useState } from 'react';
+import { Share2 } from 'lucide-react';
 import { UI_MESSAGES, SHARE_INVITE } from '../config/constants';
+import { Toast } from './ui/Toast';
+import { ParticipantAvatar } from './ui/ParticipantAvatar';
 import type { Participant } from '../types';
 
 type ParticipantListProps = {
   orderId: string;
   participants: Participant[];
-  onDeleteParticipant: (participantId: string) => void;
   onCreateInviteLink: (orderId: string) => Promise<string>;
-  isClosed?: boolean;
 };
 
 export function ParticipantList({
   orderId,
   participants,
-  onDeleteParticipant,
   onCreateInviteLink,
-  isClosed = false,
 }: ParticipantListProps) {
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
+
   const handleShare = async () => {
     try {
       const shareUrl = await onCreateInviteLink(orderId);
@@ -29,10 +30,14 @@ export function ParticipantList({
         });
       } else {
         await navigator.clipboard.writeText(shareUrl);
-        alert(UI_MESSAGES.ALERT_INVITE_LINK_COPIED);
+        setToast({ message: UI_MESSAGES.ALERT_INVITE_LINK_COPIED, variant: 'success' });
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : UI_MESSAGES.ALERT_INVITE_LINK_ERROR);
+      if (error instanceof Error && error.name === 'AbortError') return;
+      setToast({
+        message: error instanceof Error ? error.message : UI_MESSAGES.ALERT_INVITE_LINK_ERROR,
+        variant: 'error',
+      });
     }
   };
 
@@ -40,16 +45,19 @@ export function ParticipantList({
     <div className="space-y-4">
       <InviteCard onShare={handleShare} />
 
+      <p className="text-sm text-gray-500 px-1">
+        Участники присоединяются к заказу по ссылке-приглашению
+      </p>
+
       <div className="space-y-2">
         {participants.map((participant) => (
-          <ParticipantItem
-            key={participant.id}
-            participant={participant}
-            canDelete={participants.length > 1 && !isClosed}
-            onDelete={onDeleteParticipant}
-          />
+          <ParticipantItem key={participant.id} participant={participant} />
         ))}
       </div>
+
+      {toast && (
+        <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />
+      )}
     </div>
   );
 }
@@ -79,30 +87,15 @@ function InviteCard({ onShare }: InviteCardProps) {
 
 interface ParticipantItemProps {
   participant: Participant;
-  canDelete: boolean;
-  onDelete: (participantId: string) => void;
 }
 
-function ParticipantItem({ participant, canDelete, onDelete }: ParticipantItemProps) {
+function ParticipantItem({ participant }: ParticipantItemProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div
-          className="size-10 rounded-full flex items-center justify-center text-white font-semibold"
-          style={{ backgroundColor: participant.color }}
-        >
-          {participant.name.charAt(0).toUpperCase()}
-        </div>
+        <ParticipantAvatar name={participant.name} color={participant.color} />
         <span className="font-medium text-gray-800">{participant.name}</span>
       </div>
-      {canDelete && (
-        <button
-          onClick={() => onDelete(participant.id)}
-          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-        >
-          <Trash2 className="size-4" />
-        </button>
-      )}
     </div>
   );
 }

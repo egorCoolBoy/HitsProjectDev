@@ -1,18 +1,32 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Home } from '../components/Home';
 import { Order } from '../components/Order';
 import { useAuth } from '../hooks/useAuth';
 import { useTelegram } from '../hooks/useTelegram';
 import { useOrders } from '../hooks/useOrders';
-import { useOrderUpdate } from '../hooks/useOrderUpdate';
-import orderService from '../services/orderService';
-import { parseNumericId } from '../utils/calculators';
-import type { OrderData, UserProfile } from '../types';
+import { useCurrentOrder } from '../hooks/useCurrentOrder';
+import type { UserProfile } from '../types';
 import { UI_MESSAGES } from '../config/constants';
 
 const DEFAULT_USER: UserProfile = { name: 'Пользователь', avatar: '👤' };
 const queryClient = new QueryClient();
+
+function LoadingScreen({ message }: { message: string }) {
+  return (
+    <div className="min-h-screen grid place-items-center bg-[#f5f5f5] p-6 text-center text-gray-600">
+      {message}
+    </div>
+  );
+}
+
+function ErrorScreen({ message }: { message: string }) {
+  return (
+    <div className="min-h-screen grid place-items-center bg-[#f5f5f5] p-6 text-center text-red-600">
+      {message}
+    </div>
+  );
+}
 
 function AppContent() {
   const { initData, user } = useTelegram();
@@ -34,104 +48,60 @@ function AppContent() {
     [user?.first_name, user?.username],
   );
 
-  const [currentOrder, setCurrentOrder] = useState<OrderData | null>(null);
-  const [inviteOrderOpened, setInviteOrderOpened] = useState(false);
-
   const { orders, isLoading, isError, error, loadOrder, refreshOrder, createOrder, deleteOrder } =
-    useOrders(userProfile, currentUserId);
+    useOrders(currentUserId);
 
-  const { updateOrder } = useOrderUpdate(refreshOrder);
+  const orderScreen = useCurrentOrder({
+    currentUserId,
+    orderIdFromUrl,
+    ordersLoaded: !isLoading,
+    loadOrder,
+    refreshOrder,
+  });
 
-  // Load invited order if present in URL
-  useMemo(() => {
-    if (orderIdFromUrl && !inviteOrderOpened && orders.length > 0) {
-      loadOrder(orderIdFromUrl.toString()).then((invitedOrder) => {
-        setCurrentOrder(invitedOrder);
-        setInviteOrderOpened(true);
-      });
-    }
-  }, [orderIdFromUrl, orders.length, inviteOrderOpened, loadOrder]);
-
-  // Handlers
-  const handleCreateOrder = async (order: OrderData) => {
-    await createOrder(order);
-  };
-
-  const handleUpdateOrder = async (updatedOrder: OrderData) => {
-    if (!currentOrder) return;
-    await updateOrder(currentOrder, updatedOrder);
-    await refreshOrder(updatedOrder.id);
-  };
-
-  const handleOpenOrder = async (orderId: string) => {
-    const order = await loadOrder(orderId);
-    setCurrentOrder(order);
-  };
-
-  const handleDeleteOrder = async (orderId: string) => {
-    await deleteOrder(orderId);
-    if (currentOrder?.id === orderId) {
-      setCurrentOrder(null);
-    }
-  };
-
-  const handleCreateInviteLink = async (orderId: string): Promise<string> => {
-    const response = await orderService.createInviteLink(parseNumericId(orderId));
-    if (!response.url) {
-      throw new Error(UI_MESSAGES.ERROR_BACKEND_NO_URL);
-    }
-    return response.url;
-  };
-
-  // Render states
-  if (auth.isPending) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-[#f5f5f5] p-6 text-center text-gray-600">
-        {UI_MESSAGES.LOADING}
-      </div>
-    );
-  }
+  if (auth.isPending) return <LoadingScreen message={UI_MESSAGES.LOADING} />;
 
   if (auth.isError) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-[#f5f5f5] p-6 text-center text-red-600">
-        {UI_MESSAGES.AUTH_ERROR} {auth.error?.message}
-      </div>
-    );
+    return <ErrorScreen message={`${UI_MESSAGES.AUTH_ERROR} ${auth.error?.message}`} />;
   }
 
-  if (isLoading && !currentOrder) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-[#f5f5f5] p-6 text-center text-gray-600">
-        {UI_MESSAGES.LOADING_ORDERS}
-      </div>
-    );
+  if (isLoading && orderScreen.isOnHome) {
+    return <LoadingScreen message={UI_MESSAGES.LOADING_ORDERS} />;
   }
 
   if (isError) {
     return (
-      <div className="min-h-screen grid place-items-center bg-[#f5f5f5] p-6 text-center text-red-600">
-        {error instanceof Error ? error.message : UI_MESSAGES.ORDERS_ERROR}
-      </div>
+      <ErrorScreen
+        message={error instanceof Error ? error.message : UI_MESSAGES.ORDERS_ERROR}
+      />
     );
   }
 
   return (
     <div className="size-full bg-[#f5f5f5]">
-      {!currentOrder ? (
+      {orderScreen.isOnHome ? (
         <Home
           userProfile={userProfile}
+          currentUserId={currentUserId}
           orders={orders}
-          onCreateOrder={handleCreateOrder}
-          onOpenOrder={handleOpenOrder}
-          onDeleteOrder={handleDeleteOrder}
+          onCreateOrder={async (title) => {
+            await createOrder(title);
+          }}
+          onOpenOrder={orderScreen.openOrder}
+          onDeleteOrder={async (orderId) => {
+            await deleteOrder(orderId);
+            orderScreen.clearIfDeleted(orderId);
+          }}
         />
       ) : (
         <Order
-          order={currentOrder}
-          onUpdateOrder={handleUpdateOrder}
-          onBack={() => setCurrentOrder(null)}
-          onCreateInviteLink={handleCreateInviteLink}
+          order={orderScreen.currentOrder!}
+          onUpdateOrder={orderScreen.updateOrder}
+          onBack={orderScreen.closeOrderView}
+          onCreateInviteLink={orderScreen.createInviteLink}
+          onAddExpense={orderScreen.addExpense}
+          onDeleteExpense={orderScreen.deleteExpense}
+          onCloseOrder={orderScreen.closeOrder}
         />
       )}
     </div>
