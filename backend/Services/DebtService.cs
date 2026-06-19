@@ -206,6 +206,33 @@ public sealed class DebtService : IDebtService
         };
     }
 
+    public async Task<BotDebtsResponse> GetForBotAsync(
+        DebtStatusFilter status,
+        SortDirection sortDirection,
+        long? orderId)
+    {
+        var query = _dbContext.Debts
+            .Include(item => item.Order)
+            .Include(item => item.Debtor)
+            .Include(item => item.Creditor)
+            .AsQueryable();
+
+        if (orderId.HasValue)
+        {
+            query = query.Where(item => item.OrderId == orderId.Value);
+        }
+
+        var debts = await ApplyDebtSort(
+                ApplyDebtStatusFilter(query, status),
+                sortDirection)
+            .ToListAsync();
+
+        return new BotDebtsResponse
+        {
+            Debts = debts.Select(BotDebtResponse.From).ToList()
+        };
+    }
+
     public async Task<DebtResponse> RequestSettlementAsync(long userId, long debtId)
     {
         var debt = await GetDebtAsync(debtId);

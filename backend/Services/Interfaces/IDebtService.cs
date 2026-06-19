@@ -16,6 +16,11 @@ public interface IDebtService
         DebtStatusFilter status,
         SortDirection sortDirection);
 
+    Task<BotDebtsResponse> GetForBotAsync(
+        DebtStatusFilter status,
+        SortDirection sortDirection,
+        long? orderId);
+
     Task<DebtResponse> RequestSettlementAsync(long userId, long debtId);
 
     Task<DebtResponse> ConfirmSettlementAsync(long userId, long debtId);

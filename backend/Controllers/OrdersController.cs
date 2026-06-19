@@ -101,6 +101,10 @@ public sealed class OrdersController : ControllerBase
             await _orderService.DeleteAsync(User.GetUserId(), id);
             return NoContent();
         }
+        catch (InvalidOperationException exception)
+        {
+            return Problem(exception.Message);
+        }
         catch (OrderNotFoundException exception)
         {
             return NotFound(new { message = exception.Message });

@@ -129,6 +129,10 @@ public sealed class OrderService : IOrderService
         {
             throw new OrderNotFoundException(orderId);
         }
+        if (order.IsClosed)
+        {
+            throw new InvalidOperationException("Order is closed and cannot be deleted.");
+        }
 
         var membership = await _dbContext.OrderUsers
             .FirstOrDefaultAsync(item => item.UserId == userId && item.OrderId == orderId);

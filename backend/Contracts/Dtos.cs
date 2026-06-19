@@ -381,4 +381,84 @@ public sealed class MyDebtsResponse
     public IReadOnlyList<DebtResponse> OwedToMe { get; set; } = Array.Empty<DebtResponse>();
 }
 
+public sealed class BotDebtUserResponse
+{
+    public long UserId { get; set; }
+
+    public long TelegramId { get; set; }
+
+    public string? Username { get; set; }
+
+    public string? FirstName { get; set; }
+
+    public static BotDebtUserResponse From(User user)
+    {
+        return new BotDebtUserResponse
+        {
+            UserId = user.Id,
+            TelegramId = user.TelegramId,
+            Username = user.Username,
+            FirstName = user.FirstName
+        };
+    }
+}
+
+public sealed class BotDebtOrderResponse
+{
+    public long Id { get; set; }
+
+    public string? Title { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public static BotDebtOrderResponse From(Order order)
+    {
+        return new BotDebtOrderResponse
+        {
+            Id = order.Id,
+            Title = order.Title,
+            CreatedAt = order.CreatedAt
+        };
+    }
+}
+
+public sealed class BotDebtResponse
+{
+    public long DebtId { get; set; }
+
+    public BotDebtOrderResponse Order { get; set; } = new();
+
+    public BotDebtUserResponse Debtor { get; set; } = new();
+
+    public BotDebtUserResponse Creditor { get; set; } = new();
+
+    public decimal Amount { get; set; }
+
+    public DebtStatus Status { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public DateTimeOffset? SettledAt { get; set; }
+
+    public static BotDebtResponse From(Debt debt)
+    {
+        return new BotDebtResponse
+        {
+            DebtId = debt.Id,
+            Order = BotDebtOrderResponse.From(debt.Order),
+            Debtor = BotDebtUserResponse.From(debt.Debtor),
+            Creditor = BotDebtUserResponse.From(debt.Creditor),
+            Amount = debt.Amount,
+            Status = debt.Status,
+            CreatedAt = debt.CreatedAt,
+            SettledAt = debt.SettledAt
+        };
+    }
+}
+
+public sealed class BotDebtsResponse
+{
+    public IReadOnlyList<BotDebtResponse> Debts { get; set; } = Array.Empty<BotDebtResponse>();
+}
+
 
