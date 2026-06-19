@@ -56,7 +56,7 @@ builder.Services.AddSingleton<ITelegramInitDataValidator, TelegramInitDataValida
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("DebugConnection")
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
     options.UseNpgsql(connectionString);
 });
