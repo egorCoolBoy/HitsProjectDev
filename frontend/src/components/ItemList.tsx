@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Trash2, Users } from 'lucide-react';
+import { DEFAULT_VALUES } from '../config/constants';
 import { calculateTotalPortions, isPortionValid } from '../utils/orderCalculations';
 import { isValidPortion } from '../utils/validation';
 import { ParticipantAvatar } from './ui/ParticipantAvatar';
@@ -169,23 +170,23 @@ function ParticipantInput({ participant, itemId, portion, onPortionChange, disab
 
       <div className="flex items-center gap-2">
         <input
-          type="text"
-          inputMode="decimal"
+          type="number"
+          min={0.00}
+          max={1.00}
+          step={DEFAULT_VALUES.PORTION_STEP}
           value={draft}
           onChange={(e) => {
             const value = e.target.value;
-            if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
-
             setDraft(value);
 
-            if (value !== '' && !value.endsWith('.') && isValidPortion(value)) {
+            if (value !== '' && isValidPortion(value)) {
               onPortionChange(itemId, participant.id, value);
             }
           }}
           onBlur={() => commitDraft(draft)}
           disabled={disabled}
           className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0088cc] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-          placeholder="0"
+          placeholder="0.00"
         />
       </div>
     </div>
