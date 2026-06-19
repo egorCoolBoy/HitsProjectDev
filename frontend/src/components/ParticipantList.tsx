@@ -45,10 +45,6 @@ export function ParticipantList({
     <div className="space-y-4">
       <InviteCard onShare={handleShare} />
 
-      <p className="text-sm text-gray-500 px-1">
-        Участники присоединяются к заказу по ссылке-приглашению
-      </p>
-
       <div className="space-y-2">
         {participants.map((participant) => (
           <ParticipantItem key={participant.id} participant={participant} />
