@@ -1,38 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Trash2, Users } from 'lucide-react';
 import { DEFAULT_VALUES } from '../config/constants';
+import { useOrderContext } from '../contexts/OrderContext';
 import { calculateTotalPortions, isPortionValid } from '../utils/orderCalculations';
 import { isValidPortion } from '../utils/validation';
 import { ParticipantAvatar } from './ui/ParticipantAvatar';
 import type { OrderItem, Participant } from '../types';
 
-type ItemListProps = {
-  items: OrderItem[];
-  participants: Participant[];
-  onUpdateParticipantPortion: (itemId: string, participantId: string, portion: number) => void;
-  onSplitEvenly: (itemId: string) => void;
-  onDeleteItem: (itemId: string) => void;
-  isClosed?: boolean;
-};
+export function ItemList() {
+  const { order, isClosed, requestDeleteItem } = useOrderContext();
 
-export function ItemList({
-  items,
-  participants,
-  onUpdateParticipantPortion,
-  onSplitEvenly,
-  onDeleteItem,
-  isClosed = false,
-}: ItemListProps) {
-  const handlePortionChange = (itemId: string, participantId: string, value: string) => {
-    if (isClosed) return;
-
-    const portion = parseFloat(value);
-    if (Number.isNaN(portion) || !isValidPortion(portion)) return;
-
-    onUpdateParticipantPortion(itemId, participantId, portion);
-  };
-
-  if (items.length === 0) {
+  if (order.items.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
         <p className="mb-2">Пока нет позиций</p>
@@ -43,38 +21,28 @@ export function ItemList({
 
   return (
     <div className="space-y-3">
-      {items.map((item) => (
+      {order.items.map((item) => (
         <ItemCard
           key={item.id}
           item={item}
-          participants={participants}
-          onUpdateParticipantPortion={handlePortionChange}
-          onSplitEvenly={onSplitEvenly}
-          onDeleteItem={onDeleteItem}
+          participants={order.participants}
           isClosed={isClosed}
+          onDeleteItem={requestDeleteItem}
         />
       ))}
     </div>
   );
 }
 
-interface ItemCardProps {
+type ItemCardProps = {
   item: OrderItem;
   participants: Participant[];
-  onUpdateParticipantPortion: (itemId: string, participantId: string, value: string) => void;
-  onSplitEvenly: (itemId: string) => void;
-  onDeleteItem: (itemId: string) => void;
   isClosed: boolean;
-}
+  onDeleteItem: (itemId: string) => void;
+};
 
-function ItemCard({
-  item,
-  participants,
-  onUpdateParticipantPortion,
-  onSplitEvenly,
-  onDeleteItem,
-  isClosed,
-}: ItemCardProps) {
+function ItemCard({ item, participants, isClosed, onDeleteItem }: ItemCardProps) {
+  const { splitItemEvenly } = useOrderContext();
   const totalPortions = calculateTotalPortions(item.participants);
   const isValid = isPortionValid(totalPortions);
 
@@ -100,7 +68,7 @@ function ItemCard({
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-gray-500">Кто ест (введите части от 0 до 1):</p>
               <button
-                onClick={() => onSplitEvenly(item.id)}
+                onClick={() => splitItemEvenly(item.id)}
                 disabled={isClosed}
                 className="text-xs bg-[#0088cc] text-white px-2 py-1 rounded-lg hover:bg-[#0077bb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
               >
@@ -114,8 +82,7 @@ function ItemCard({
                   key={participant.id}
                   participant={participant}
                   itemId={item.id}
-                  portion={item.participants.find((p) => p.participantId === participant.id)?.portion || 0}
-                  onPortionChange={onUpdateParticipantPortion}
+                  portion={item.participants.find((p) => p.participantId === participant.id)?.portion ?? 0}
                   disabled={isClosed}
                 />
               ))}
@@ -129,25 +96,28 @@ function ItemCard({
   );
 }
 
-interface ParticipantInputProps {
+type ParticipantInputProps = {
   participant: Participant;
   itemId: string;
   portion: number;
-  onPortionChange: (itemId: string, participantId: string, value: string) => void;
   disabled: boolean;
-}
+};
 
-function ParticipantInput({ participant, itemId, portion, onPortionChange, disabled }: ParticipantInputProps) {
+function ParticipantInput({ participant, itemId, portion, disabled }: ParticipantInputProps) {
+  const { updatePortion } = useOrderContext();
   const [draft, setDraft] = useState(() => formatPortionDraft(portion));
+  const isEditingRef = useRef(false);
 
   useEffect(() => {
-    setDraft(formatPortionDraft(portion));
+    if (!isEditingRef.current) {
+      setDraft(formatPortionDraft(portion));
+    }
   }, [portion]);
 
   const commitDraft = (value: string) => {
     if (value === '' || value === '.') {
       setDraft('');
-      onPortionChange(itemId, participant.id, '0');
+      updatePortion(itemId, participant.id, 0);
       return;
     }
 
@@ -157,8 +127,8 @@ function ParticipantInput({ participant, itemId, portion, onPortionChange, disab
       return;
     }
 
-    setDraft(value);
-    onPortionChange(itemId, participant.id, value);
+    setDraft(String(num));
+    updatePortion(itemId, participant.id, num);
   };
 
   return (
@@ -168,27 +138,24 @@ function ParticipantInput({ participant, itemId, portion, onPortionChange, disab
         <span className="text-sm font-medium text-gray-800">{participant.name}</span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="number"
-          min={0.00}
-          max={1.00}
-          step={DEFAULT_VALUES.PORTION_STEP}
-          value={draft}
-          onChange={(e) => {
-            const value = e.target.value;
-            setDraft(value);
-
-            if (value !== '' && isValidPortion(value)) {
-              onPortionChange(itemId, participant.id, value);
-            }
-          }}
-          onBlur={() => commitDraft(draft)}
-          disabled={disabled}
-          className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0088cc] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-          placeholder="0.00"
-        />
-      </div>
+      <input
+        type="number"
+        min={0}
+        max={1}
+        step={DEFAULT_VALUES.PORTION_STEP}
+        value={draft}
+        onFocus={() => {
+          isEditingRef.current = true;
+        }}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          isEditingRef.current = false;
+          commitDraft(draft);
+        }}
+        disabled={disabled}
+        className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0088cc] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+        placeholder="0"
+      />
     </div>
   );
 }
@@ -197,10 +164,10 @@ function formatPortionDraft(portion: number): string {
   return portion === 0 ? '' : String(portion);
 }
 
-interface PortionSummaryProps {
+type PortionSummaryProps = {
   totalPortions: number;
   isValid: boolean;
-}
+};
 
 function PortionSummary({ totalPortions, isValid }: PortionSummaryProps) {
   return (

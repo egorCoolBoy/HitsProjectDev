@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import orderService from '../services/orderService';
 import { parseNumericId } from '../utils/apiMappers';
-import { isClientOnlyOrderUpdate, mergeClientOrderState } from '../utils/orderState';
+import { mergeClientOrderState, shouldSkipApiSync } from '../utils/orderState';
 import { useOrderMutations } from './useOrderMutations';
 import type { OrderData } from '../types';
 import { UI_MESSAGES } from '../config/constants';
@@ -56,7 +56,7 @@ export function useCurrentOrder({
     async (updatedOrder: OrderData) => {
       if (!currentOrder) return;
 
-      if (isClientOnlyOrderUpdate(currentOrder, updatedOrder)) {
+      if (shouldSkipApiSync(currentOrder, updatedOrder)) {
         setCurrentOrder(updatedOrder);
         return;
       }

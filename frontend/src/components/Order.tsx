@@ -10,8 +10,8 @@ import { FixedBottomBar } from './ui/FixedBottomBar';
 import { MoneyAmount } from './ui/MoneyAmount';
 import { UI_MESSAGES, DEFAULT_VALUES } from '../config/constants';
 import { calculateOrderTotal } from '../utils/orderCalculations';
-import { splitItemEvenly, updateParticipantPortion } from '../utils/orderEdits';
 import { isValidPrice } from '../utils/validation';
+import { OrderProvider } from '../contexts/OrderContext';
 import type { OrderData } from '../types';
 
 export type OrderActions = {
@@ -84,12 +84,16 @@ export function Order({
     }
   };
 
-  const patchOrder = (patch: Partial<OrderData>) => onUpdateOrder({ ...order, ...patch });
-
   const totalAmount = calculateOrderTotal(order.items);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f5f5f5]">
+    <OrderProvider
+      order={order}
+      onUpdateOrder={onUpdateOrder}
+      onRequestDeleteItem={(itemId) => setDeleteItemId(itemId)}
+      onClosedAction={() => setClosedAlertOpen(true)}
+    >
+      <div className="min-h-screen flex flex-col bg-[#f5f5f5]">
       <header className="bg-[#0088cc] text-white p-4 shadow-md">
         <div className="max-w-md mx-auto">
           <div className="flex items-center gap-3 mb-2">
@@ -132,24 +136,7 @@ export function Order({
 
       <main className="flex-1 overflow-auto pb-20">
         <div className="max-w-md mx-auto p-4">
-          {activeTab === 'items' && (
-            <ItemList
-              items={order.items}
-              participants={order.participants}
-              onUpdateParticipantPortion={(itemId, participantId, portion) =>
-                patchOrder({
-                  items: updateParticipantPortion(order.items, itemId, participantId, portion),
-                })
-              }
-              onSplitEvenly={(itemId) =>
-                guardClosed(() =>
-                  patchOrder({ items: splitItemEvenly(order.items, itemId, order.participants) }),
-                )
-              }
-              onDeleteItem={(itemId) => guardClosed(() => setDeleteItemId(itemId))}
-              isClosed={order.isClosed}
-            />
-          )}
+          {activeTab === 'items' && <ItemList />}
 
           {activeTab === 'participants' && (
             <ParticipantList
@@ -223,6 +210,7 @@ export function Order({
           onClose={() => setClosedAlertOpen(false)}
         />
       )}
-    </div>
+      </div>
+    </OrderProvider>
   );
 }
