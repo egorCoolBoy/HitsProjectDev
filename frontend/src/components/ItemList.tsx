@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Trash2, Users } from 'lucide-react';
 import { calculateTotalPortions, isPortionValid } from '../utils/orderCalculations';
 import { isValidPortion } from '../utils/validation';
@@ -23,9 +24,10 @@ export function ItemList({
 }: ItemListProps) {
   const handlePortionChange = (itemId: string, participantId: string, value: string) => {
     if (isClosed) return;
-    if (!isValidPortion(value)) return;
 
     const portion = parseFloat(value);
+    if (Number.isNaN(portion) || !isValidPortion(portion)) return;
+
     onUpdateParticipantPortion(itemId, participantId, portion);
   };
 
@@ -135,6 +137,29 @@ interface ParticipantInputProps {
 }
 
 function ParticipantInput({ participant, itemId, portion, onPortionChange, disabled }: ParticipantInputProps) {
+  const [draft, setDraft] = useState(() => formatPortionDraft(portion));
+
+  useEffect(() => {
+    setDraft(formatPortionDraft(portion));
+  }, [portion]);
+
+  const commitDraft = (value: string) => {
+    if (value === '' || value === '.') {
+      setDraft('');
+      onPortionChange(itemId, participant.id, '0');
+      return;
+    }
+
+    const num = parseFloat(value);
+    if (Number.isNaN(num) || !isValidPortion(num)) {
+      setDraft(formatPortionDraft(portion));
+      return;
+    }
+
+    setDraft(value);
+    onPortionChange(itemId, participant.id, value);
+  };
+
   return (
     <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
       <div className="flex items-center gap-2 flex-1">
@@ -144,13 +169,20 @@ function ParticipantInput({ participant, itemId, portion, onPortionChange, disab
 
       <div className="flex items-center gap-2">
         <input
-          name="proportion"
-          type="number"
-          min="0"
-          max="1"
-          step="0.01"
-          value={portion}
-          onChange={(e) => onPortionChange(itemId, participant.id, e.target.value)}
+          type="text"
+          inputMode="decimal"
+          value={draft}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
+
+            setDraft(value);
+
+            if (value !== '' && !value.endsWith('.') && isValidPortion(value)) {
+              onPortionChange(itemId, participant.id, value);
+            }
+          }}
+          onBlur={() => commitDraft(draft)}
           disabled={disabled}
           className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0088cc] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
           placeholder="0"
@@ -158,6 +190,10 @@ function ParticipantInput({ participant, itemId, portion, onPortionChange, disab
       </div>
     </div>
   );
+}
+
+function formatPortionDraft(portion: number): string {
+  return portion === 0 ? '' : String(portion);
 }
 
 interface PortionSummaryProps {
