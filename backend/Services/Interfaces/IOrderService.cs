@@ -8,9 +8,15 @@ public interface IOrderService
 
     Task<OrderResponse> GetByIdAsync(long userId, long orderId);
 
-    Task<IReadOnlyList<OrderResponse>> GetMyAsync(long userId);
+    Task<IReadOnlyList<OrderResponse>> GetMyAsync(
+        long userId,
+        OrderStatusFilter status,
+        SortDirection sortDirection);
 
-    Task<IReadOnlyList<OrderResponse>> GetByUserIdAsync(long userId);
+    Task<IReadOnlyList<OrderResponse>> GetByUserIdAsync(
+        long userId,
+        OrderStatusFilter status,
+        SortDirection sortDirection);
 
     Task<InviteLinkResponse> CreateInviteLinkAsync(long userId, long orderId);
 

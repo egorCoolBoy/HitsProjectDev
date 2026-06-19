@@ -10,11 +10,16 @@ public sealed class OrderService : IOrderService
 {
     private readonly AppDbContext _dbContext;
     private readonly TelegramOptions _telegramOptions;
+    private readonly IDebtService _debtService;
 
-    public OrderService(AppDbContext dbContext, IOptions<TelegramOptions> telegramOptions)
+    public OrderService(
+        AppDbContext dbContext,
+        IOptions<TelegramOptions> telegramOptions,
+        IDebtService debtService)
     {
         _dbContext = dbContext;
         _telegramOptions = telegramOptions.Value;
+        _debtService = debtService;
     }
 
     public async Task<OrderResponse> CreateAsync(long userId, string? title)
@@ -59,26 +64,38 @@ public sealed class OrderService : IOrderService
         return OrderResponse.From(order);
     }
 
-    public async Task<IReadOnlyList<OrderResponse>> GetMyAsync(long userId)
+    public async Task<IReadOnlyList<OrderResponse>> GetMyAsync(
+        long userId,
+        OrderStatusFilter status,
+        SortDirection sortDirection)
     {
-        var orders = await _dbContext.Orders
+        var query = _dbContext.Orders
             .Include(order => order.OrderUsers)
             .ThenInclude(membership => membership.User)
-            .Where(order => order.OrderUsers.Any(membership => membership.UserId == userId))
-            .OrderByDescending(item => item.Id)
-            .ToListAsync();
+            .Where(order => order.OrderUsers.Any(membership => membership.UserId == userId));
+
+        query = ApplyOrderStatusFilter(query, status);
+        query = ApplyOrderSort(query, sortDirection);
+
+        var orders = await query.ToListAsync();
 
         return orders.Select(OrderResponse.From).ToList();
     }
 
-    public async Task<IReadOnlyList<OrderResponse>> GetByUserIdAsync(long userId)
+    public async Task<IReadOnlyList<OrderResponse>> GetByUserIdAsync(
+        long userId,
+        OrderStatusFilter status,
+        SortDirection sortDirection)
     {
-        var orders = await _dbContext.Orders
+        var query = _dbContext.Orders
             .Include(order => order.OrderUsers)
             .ThenInclude(membership => membership.User)
-            .Where(order => order.OrderUsers.Any(membership => membership.UserId == userId))
-            .OrderByDescending(item => item.Id)
-            .ToListAsync();
+            .Where(order => order.OrderUsers.Any(membership => membership.UserId == userId));
+
+        query = ApplyOrderStatusFilter(query, status);
+        query = ApplyOrderSort(query, sortDirection);
+
+        var orders = await query.ToListAsync();
 
         return orders.Select(OrderResponse.From).ToList();
     }
@@ -144,7 +161,19 @@ public sealed class OrderService : IOrderService
             throw new OrderAccessDeniedException(orderId, userId);
         }
 
-        order.IsClosed = isClosed;
+        if (order.IsClosed)
+        {
+            throw new InvalidOperationException("Order is already closed.");
+        }
+
+        if (!isClosed)
+        {
+            throw new InvalidOperationException("Order can only be closed.");
+        }
+
+        await _debtService.PersistOrderDebtsAsync(userId, orderId);
+
+        order.IsClosed = true;
         await _dbContext.SaveChangesAsync();
 
         return OrderResponse.From(order);
@@ -231,5 +260,22 @@ public sealed class OrderService : IOrderService
     private static string? Normalize(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static IQueryable<Order> ApplyOrderStatusFilter(IQueryable<Order> query, OrderStatusFilter status)
+    {
+        return status switch
+        {
+            OrderStatusFilter.Closed => query.Where(item => item.IsClosed),
+            OrderStatusFilter.Open => query.Where(item => !item.IsClosed),
+            _ => query
+        };
+    }
+
+    private static IQueryable<Order> ApplyOrderSort(IQueryable<Order> query, SortDirection sortDirection)
+    {
+        return sortDirection == SortDirection.Asc
+            ? query.OrderBy(item => item.CreatedAt).ThenBy(item => item.Id)
+            : query.OrderByDescending(item => item.CreatedAt).ThenByDescending(item => item.Id);
     }
 }
