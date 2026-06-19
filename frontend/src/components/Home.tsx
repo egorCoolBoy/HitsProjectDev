@@ -255,13 +255,16 @@ function OrderCard({ order, onOpen, onDelete }: OrderCardProps) {
             </span>
           </div>
         </div>
+        
         <div className="flex items-center gap-2">
-          <button
-            onClick={onDelete}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <Trash2 className="size-4" />
-          </button>
+          {order.isClosed ? "" : 
+              <button
+                onClick={onDelete}
+                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            }
           <ChevronRight className="size-5 text-gray-400" />
         </div>
       </div>
