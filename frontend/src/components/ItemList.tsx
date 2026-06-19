@@ -144,6 +144,7 @@ function ParticipantInput({ participant, itemId, portion, onPortionChange, disab
 
       <div className="flex items-center gap-2">
         <input
+          name="proportion"
           type="number"
           min="0"
           max="1"
