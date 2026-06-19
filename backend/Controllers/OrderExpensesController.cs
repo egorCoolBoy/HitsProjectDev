@@ -146,6 +146,37 @@ public sealed class OrderExpensesController : ControllerBase
     }
 
     [Authorize]
+    [HttpPut("{expenseId:long}/participation")]
+    public async Task<ActionResult<OrderExpenseResponse>> SetParticipations(long orderId, long expenseId, [FromBody] SetExpenseParticipationsRequest request)
+    {
+        try
+        {
+            var expense = await _orderExpenseService.SetParticipationsAsync(User.GetUserId(), orderId, expenseId, request);
+            return Ok(expense);
+        }
+        catch (OrderNotFoundException exception)
+        {
+            return NotFound(new { message = exception.Message });
+        }
+        catch (OrderExpenseNotFoundException exception)
+        {
+            return NotFound(new { message = exception.Message });
+        }
+        catch (OrderAccessDeniedException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Problem(exception.Message);
+        }
+    }
+
+    [Authorize]
     [HttpPost("{expenseId:long}/participation")]
     public async Task<ActionResult<OrderExpenseResponse>> ToggleParticipation(long orderId, long expenseId, [FromBody] ToggleOrderExpenseParticipationRequest request)
     {

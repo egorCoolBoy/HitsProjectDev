@@ -15,8 +15,12 @@ export function calculateTotalPortions(participants: ParticipantPortion[]): numb
   return participants.reduce((sum, p) => sum + p.portion, 0);
 }
 
+export function getItemTotal(item: OrderItem): number {
+  return item.unitPrice * item.quantity;
+}
+
 export function calculateOrderTotal(items: OrderItem[]): number {
-  return items.reduce((sum, item) => sum + item.price, 0);
+  return items.reduce((sum, item) => sum + getItemTotal(item), 0);
 }
 
 export function calculateParticipantTotals(order: OrderData): ParticipantTotal[] {
@@ -44,7 +48,7 @@ export function calculateParticipantTotals(order: OrderData): ParticipantTotal[]
     item.participants.forEach((participantData) => {
       const participantTotal = totals.get(participantData.participantId);
       if (participantTotal) {
-        const share = item.price * participantData.portion;
+        const share = getItemTotal(item) * participantData.portion;
         participantTotal.shouldPay += share;
         participantTotal.items.push({
           name: `${item.name} (${participantData.portion.toFixed(2)})`,

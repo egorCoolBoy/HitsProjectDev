@@ -14,7 +14,8 @@ export interface ParticipantPortion {
 export interface OrderItem {
   id: string;
   name: string;
-  price: number;
+  unitPrice: number;
+  quantity: number;
   participants: ParticipantPortion[];
 }
 
@@ -70,6 +71,13 @@ export interface ApiOrder {
   createdAt: string;
 }
 
+export interface ApiOrderExpenseParticipant {
+  userId: number;
+  user: ApiUser;
+  share: number;
+  createdAt: string;
+}
+
 export interface ApiOrderExpense {
   id: number;
   orderId: number;
@@ -79,6 +87,7 @@ export interface ApiOrderExpense {
   totalPrice: number;
   participantCount: number;
   isParticipating: boolean;
+  participants: ApiOrderExpenseParticipant[];
   createdAt: string;
   updatedAt: string;
 }

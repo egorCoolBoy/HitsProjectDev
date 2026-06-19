@@ -68,6 +68,15 @@ export function useOrders(currentUserId: number | null) {
     [currentUserId, queryClient],
   );
 
+  const patchOrder = useCallback(
+    (orderId: string, patch: Partial<OrderData>) => {
+      queryClient.setQueryData<OrderData[]>([ORDERS_QUERY_KEY, currentUserId], (current) =>
+        current?.map((order) => (order.id === orderId ? { ...order, ...patch } : order)) ?? current,
+      );
+    },
+    [currentUserId, queryClient],
+  );
+
   return {
     orders: ordersQuery.data ?? [],
     isLoading: ordersQuery.isLoading,
@@ -77,5 +86,6 @@ export function useOrders(currentUserId: number | null) {
     refreshOrder,
     createOrder,
     deleteOrder,
+    patchOrder,
   };
 }

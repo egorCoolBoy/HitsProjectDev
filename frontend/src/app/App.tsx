@@ -48,15 +48,15 @@ function AppContent() {
     [user?.first_name, user?.username],
   );
 
-  const { orders, isLoading, isError, error, loadOrder, refreshOrder, createOrder, deleteOrder } =
+  const { orders, isLoading, isError, error, loadOrder, refreshOrder, createOrder, deleteOrder, patchOrder } =
     useOrders(currentUserId);
 
   const orderScreen = useCurrentOrder({
-    currentUserId,
     orderIdFromUrl,
     ordersLoaded: !isLoading,
     loadOrder,
     refreshOrder,
+    patchOrder,
   });
 
   if (auth.isPending) return <LoadingScreen message={UI_MESSAGES.LOADING} />;
@@ -100,6 +100,7 @@ function AppContent() {
           onBack={orderScreen.closeOrderView}
           onCreateInviteLink={orderScreen.createInviteLink}
           onAddExpense={orderScreen.addExpense}
+          onUpdateExpense={orderScreen.updateExpense}
           onDeleteExpense={orderScreen.deleteExpense}
           onCloseOrder={orderScreen.closeOrder}
         />

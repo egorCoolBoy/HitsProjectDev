@@ -93,7 +93,14 @@ public sealed class OrderExpenseService : IOrderExpenseService
         var existing = await _dbContext.OrderExpenseUsers
             .FirstOrDefaultAsync(item => item.OrderExpenseId == expense.Id && item.UserId == userId);
 
-        if (existing is null)
+        if (request.Share <= 0)
+        {
+            if (existing is not null)
+            {
+                _dbContext.OrderExpenseUsers.Remove(existing);
+            }
+        }
+        else if (existing is null)
         {
             ValidateShare(request.Share);
 
@@ -107,7 +114,72 @@ public sealed class OrderExpenseService : IOrderExpenseService
         }
         else
         {
-            _dbContext.OrderExpenseUsers.Remove(existing);
+            ValidateShare(request.Share);
+            existing.Share = request.Share;
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return await MapExpenseAsync(userId, expense);
+    }
+
+    public async Task<OrderExpenseResponse> SetParticipationsAsync(long userId, long orderId, long expenseId, SetExpenseParticipationsRequest request)
+    {
+        var order = await GetOrderWithAccessAsync(userId, orderId);
+        EnsureMutable(order);
+
+        var expense = await GetExpenseAsync(orderId, expenseId);
+
+        var orderMemberIds = (await _dbContext.OrderUsers
+            .Where(item => item.OrderId == orderId)
+            .Select(item => item.UserId)
+            .ToListAsync()).ToHashSet();
+
+        var requestedShares = new Dictionary<long, decimal>();
+        foreach (var participant in request.Participants)
+        {
+            if (!orderMemberIds.Contains(participant.UserId))
+            {
+                throw new ArgumentException($"User {participant.UserId} is not a member of this order.");
+            }
+
+            if (participant.Share <= 0)
+            {
+                continue;
+            }
+
+            ValidateShare(participant.Share);
+            requestedShares[participant.UserId] = participant.Share;
+        }
+
+        var existing = await _dbContext.OrderExpenseUsers
+            .Where(item => item.OrderExpenseId == expense.Id)
+            .ToListAsync();
+
+        foreach (var participant in existing)
+        {
+            if (!requestedShares.TryGetValue(participant.UserId, out var share))
+            {
+                _dbContext.OrderExpenseUsers.Remove(participant);
+                continue;
+            }
+
+            if (participant.Share != share)
+            {
+                participant.Share = share;
+            }
+
+            requestedShares.Remove(participant.UserId);
+        }
+
+        foreach (var (participantUserId, share) in requestedShares)
+        {
+            _dbContext.OrderExpenseUsers.Add(new OrderExpenseUser
+            {
+                OrderExpenseId = expense.Id,
+                UserId = participantUserId,
+                Share = share,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
         }
 
         await _dbContext.SaveChangesAsync();

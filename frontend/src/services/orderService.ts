@@ -80,6 +80,17 @@ const orderService = {
     return response.data;
   },
 
+  setExpenseParticipations: async (
+    orderId: number,
+    expenseId: number,
+    participants: Array<{ userId: number; share: number }>,
+  ) => {
+    const response = await api.put<ApiOrderExpense>(`/orders/${orderId}/expenses/${expenseId}/participation`, {
+      participants,
+    });
+    return response.data;
+  },
+
   createInviteLink: async (id: number) => {
     const response = await api.post<{ url: string | null }>(`/orders/${id}/invite-link`);
     return response.data;

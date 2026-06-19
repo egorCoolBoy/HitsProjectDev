@@ -60,14 +60,15 @@ function mapParticipants(order: ApiOrder, currentUserId: number | null): Partici
   }));
 }
 
-function mapExpenseToItem(expense: ApiOrderExpense, currentUserId: number | null): OrderItem {
-  const currentParticipantId = currentUserId?.toString() ?? 'me';
+function mapExpenseToItem(expense: ApiOrderExpense, _currentUserId: number | null): OrderItem {
   return {
     id: expense.id.toString(),
     name: expense.title || 'Позиция',
-    price: expense.totalPrice || expense.price * expense.quantity,
-    participants: expense.isParticipating
-      ? [{ participantId: currentParticipantId, portion: 1 }]
-      : [],
+    unitPrice: expense.price,
+    quantity: expense.quantity,
+    participants: (expense.participants ?? []).map((participant) => ({
+      participantId: participant.userId.toString(),
+      portion: participant.share,
+    })),
   };
 }

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Trash2, Users } from 'lucide-react';
+import { Pencil, Trash2, Users } from 'lucide-react';
 import { DEFAULT_VALUES } from '../config/constants';
 import { useOrderContext } from '../contexts/OrderContext';
-import { calculateTotalPortions, isPortionValid } from '../utils/orderCalculations';
+import { calculateTotalPortions, getItemTotal, isPortionValid } from '../utils/orderCalculations';
 import { isValidPortion } from '../utils/validation';
 import { ParticipantAvatar } from './ui/ParticipantAvatar';
+import { MoneyAmount } from './ui/MoneyAmount';
 import type { OrderItem, Participant } from '../types';
 
 export function ItemList() {
@@ -42,9 +43,10 @@ type ItemCardProps = {
 };
 
 function ItemCard({ item, participants, isClosed, onDeleteItem }: ItemCardProps) {
-  const { splitItemEvenly } = useOrderContext();
+  const { splitItemEvenly, requestEditItem } = useOrderContext();
   const totalPortions = calculateTotalPortions(item.participants);
   const isValid = isPortionValid(totalPortions);
+  const itemTotal = getItemTotal(item);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -52,15 +54,31 @@ function ItemCard({ item, participants, isClosed, onDeleteItem }: ItemCardProps)
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
             <h3 className="font-medium text-gray-800">{item.name}</h3>
-            <p className="text-lg font-semibold text-[#0088cc] mt-1">{item.price.toFixed(2)} ₽</p>
+            <p className="text-lg font-semibold text-[#0088cc] mt-1">
+              <MoneyAmount value={itemTotal} />
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {item.unitPrice.toFixed(2)} ₽ × {item.quantity}
+            </p>
           </div>
-          <button
-            onClick={() => onDeleteItem(item.id)}
-            disabled={isClosed}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Trash2 className="size-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => requestEditItem(item.id)}
+              disabled={isClosed}
+              className="p-2 text-gray-400 hover:text-[#0088cc] hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Редактировать позицию"
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              onClick={() => onDeleteItem(item.id)}
+              disabled={isClosed}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Удалить позицию"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
         </div>
 
         {participants.length > 0 && (

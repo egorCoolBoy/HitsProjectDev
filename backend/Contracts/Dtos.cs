@@ -52,6 +52,18 @@ public sealed class ToggleOrderExpenseParticipationRequest
     public decimal Share { get; set; }
 }
 
+public sealed class ExpenseParticipantShareRequest
+{
+    public long UserId { get; set; }
+
+    public decimal Share { get; set; }
+}
+
+public sealed class SetExpenseParticipationsRequest
+{
+    public IReadOnlyList<ExpenseParticipantShareRequest> Participants { get; set; } = Array.Empty<ExpenseParticipantShareRequest>();
+}
+
 public sealed class InviteLinkResponse
 {
     public string Url { get; set; } = string.Empty;

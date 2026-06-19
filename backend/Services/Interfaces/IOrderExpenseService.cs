@@ -15,4 +15,6 @@ public interface IOrderExpenseService
     Task DeleteAsync(long userId, long orderId, long expenseId);
 
     Task<OrderExpenseResponse> ToggleParticipationAsync(long userId, long orderId, long expenseId, ToggleOrderExpenseParticipationRequest request);
+
+    Task<OrderExpenseResponse> SetParticipationsAsync(long userId, long orderId, long expenseId, SetExpenseParticipationsRequest request);
 }

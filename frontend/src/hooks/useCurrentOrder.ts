@@ -3,30 +3,30 @@ import orderService from '../services/orderService';
 import { parseNumericId } from '../utils/apiMappers';
 import { mergeClientOrderState, shouldSkipApiSync } from '../utils/orderState';
 import { useOrderMutations } from './useOrderMutations';
+import type { ExpenseInput } from './useOrderMutations';
 import type { OrderData } from '../types';
 import { UI_MESSAGES } from '../config/constants';
 
 type UseCurrentOrderParams = {
-  currentUserId: number | null;
   orderIdFromUrl: number | null;
   ordersLoaded: boolean;
   loadOrder: (orderId: string) => Promise<OrderData>;
   refreshOrder: (orderId: string) => Promise<OrderData>;
+  patchOrder: (orderId: string, patch: Partial<OrderData>) => void;
 };
 
 export function useCurrentOrder({
-  currentUserId,
   orderIdFromUrl,
   ordersLoaded,
   loadOrder,
   refreshOrder,
+  patchOrder,
 }: UseCurrentOrderParams) {
   const [currentOrder, setCurrentOrder] = useState<OrderData | null>(null);
   const inviteHandled = useRef(false);
 
-  const { addExpense, deleteExpense, closeOrder, syncOrderChanges } = useOrderMutations(
+  const { addExpense, updateExpense, deleteExpense, closeOrder, syncOrderChanges } = useOrderMutations(
     refreshOrder,
-    currentUserId,
   );
 
   useEffect(() => {
@@ -36,13 +36,10 @@ export function useCurrentOrder({
     loadOrder(orderIdFromUrl.toString()).then(setCurrentOrder);
   }, [orderIdFromUrl, ordersLoaded, loadOrder]);
 
-  const applyServerOrder = useCallback(
-    (serverOrder: OrderData) => {
-      setCurrentOrder((prev) => (prev ? mergeClientOrderState(serverOrder, prev) : serverOrder));
-      return serverOrder;
-    },
-    [],
-  );
+  const applyServerOrder = useCallback((serverOrder: OrderData) => {
+    setCurrentOrder((prev) => (prev ? mergeClientOrderState(serverOrder, prev) : serverOrder));
+    return serverOrder;
+  }, []);
 
   const openOrder = useCallback(
     async (orderId: string) => {
@@ -68,12 +65,21 @@ export function useCurrentOrder({
   );
 
   const handleAddExpense = useCallback(
-    async (payload: { title: string; price: number }) => {
+    async (payload: ExpenseInput) => {
       if (!currentOrder) return;
       const refreshed = await addExpense(currentOrder.id, payload);
       applyServerOrder(refreshed);
     },
     [addExpense, applyServerOrder, currentOrder],
+  );
+
+  const handleUpdateExpense = useCallback(
+    async (expenseId: string, payload: ExpenseInput) => {
+      if (!currentOrder) return;
+      const refreshed = await updateExpense(currentOrder.id, expenseId, payload);
+      applyServerOrder(refreshed);
+    },
+    [applyServerOrder, currentOrder, updateExpense],
   );
 
   const handleDeleteExpense = useCallback(
@@ -87,9 +93,10 @@ export function useCurrentOrder({
 
   const handleCloseOrder = useCallback(async () => {
     if (!currentOrder) return;
-    const refreshed = await closeOrder(currentOrder.id);
-    applyServerOrder(refreshed);
-  }, [applyServerOrder, closeOrder, currentOrder]);
+    await closeOrder(currentOrder.id);
+    setCurrentOrder((prev) => (prev ? { ...prev, isClosed: true } : null));
+    patchOrder(currentOrder.id, { isClosed: true });
+  }, [closeOrder, currentOrder, patchOrder]);
 
   const handleCreateInviteLink = useCallback(async (orderId: string): Promise<string> => {
     const response = await orderService.createInviteLink(parseNumericId(orderId));
@@ -109,6 +116,7 @@ export function useCurrentOrder({
     },
     updateOrder,
     addExpense: handleAddExpense,
+    updateExpense: handleUpdateExpense,
     deleteExpense: handleDeleteExpense,
     closeOrder: handleCloseOrder,
     createInviteLink: handleCreateInviteLink,

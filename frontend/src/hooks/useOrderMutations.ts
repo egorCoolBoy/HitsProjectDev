@@ -1,29 +1,54 @@
 import { useCallback } from 'react';
 import orderService from '../services/orderService';
 import { parseNumericId } from '../utils/apiMappers';
-import type { OrderData } from '../types';
+import { portionsEqual, toParticipationPayload } from '../utils/participationSync';
+import type { OrderData, OrderItem } from '../types';
 
-type CreateExpenseInput = {
+export type ExpenseInput = {
   title: string;
   price: number;
+  quantity: number;
 };
+
+async function syncItemPortions(
+  orderId: number,
+  currentItem: OrderItem,
+  updatedItem: OrderItem,
+) {
+  if (portionsEqual(currentItem.participants, updatedItem.participants)) return;
+
+  const expenseId = parseNumericId(updatedItem.id);
+  if (Number.isNaN(expenseId)) return;
+
+  await orderService.setExpenseParticipations(
+    orderId,
+    expenseId,
+    toParticipationPayload(updatedItem.participants),
+  );
+}
 
 /**
  * All order mutations in one place.
- * Expense CRUD uses explicit API calls; portion/title changes use diff-sync.
  */
-export function useOrderMutations(
-  refreshOrder: (orderId: string) => Promise<OrderData>,
-  currentUserId: number | null,
-) {
-  const currentParticipantId = currentUserId?.toString() ?? 'me';
-
+export function useOrderMutations(refreshOrder: (orderId: string) => Promise<OrderData>) {
   const addExpense = useCallback(
-    async (orderId: string, payload: CreateExpenseInput) => {
+    async (orderId: string, payload: ExpenseInput) => {
       await orderService.createExpense(parseNumericId(orderId), {
         title: payload.title,
         price: payload.price,
-        quantity: 1,
+        quantity: payload.quantity,
+      });
+      return refreshOrder(orderId);
+    },
+    [refreshOrder],
+  );
+
+  const updateExpense = useCallback(
+    async (orderId: string, expenseId: string, payload: ExpenseInput) => {
+      await orderService.updateExpense(parseNumericId(orderId), parseNumericId(expenseId), {
+        title: payload.title,
+        price: payload.price,
+        quantity: payload.quantity,
       });
       return refreshOrder(orderId);
     },
@@ -38,13 +63,9 @@ export function useOrderMutations(
     [refreshOrder],
   );
 
-  const closeOrder = useCallback(
-    async (orderId: string) => {
-      await orderService.changeStatus(parseNumericId(orderId), { isClosed: true });
-      return refreshOrder(orderId);
-    },
-    [refreshOrder],
-  );
+  const closeOrder = useCallback(async (orderId: string) => {
+    await orderService.changeStatus(parseNumericId(orderId), { isClosed: true });
+  }, []);
 
   const syncOrderChanges = useCallback(
     async (currentOrder: OrderData, updatedOrder: OrderData) => {
@@ -55,26 +76,15 @@ export function useOrderMutations(
       }
 
       for (const item of updatedOrder.items) {
-        const currentItem = currentOrder.items.find((i) => i.id === item.id);
+        const currentItem = currentOrder.items.find((candidate) => candidate.id === item.id);
         if (!currentItem) continue;
-
-        const expenseId = parseNumericId(item.id);
-        if (Number.isNaN(expenseId)) continue;
-
-        const currentShare =
-          currentItem.participants.find((p) => p.participantId === currentParticipantId)?.portion ?? 0;
-        const updatedShare =
-          item.participants.find((p) => p.participantId === currentParticipantId)?.portion ?? 0;
-
-        if (updatedShare !== currentShare) {
-          await orderService.toggleExpenseParticipation(orderId, expenseId, updatedShare);
-        }
+        await syncItemPortions(orderId, currentItem, item);
       }
 
       return refreshOrder(updatedOrder.id);
     },
-    [currentParticipantId, refreshOrder],
+    [refreshOrder],
   );
 
-  return { addExpense, deleteExpense, closeOrder, syncOrderChanges };
+  return { addExpense, updateExpense, deleteExpense, closeOrder, syncOrderChanges };
 }

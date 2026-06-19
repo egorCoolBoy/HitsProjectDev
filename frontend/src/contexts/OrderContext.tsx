@@ -8,6 +8,7 @@ type OrderContextValue = {
   updatePortion: (itemId: string, participantId: string, portion: number) => void;
   splitItemEvenly: (itemId: string) => void;
   requestDeleteItem: (itemId: string) => void;
+  requestEditItem: (itemId: string) => void;
 };
 
 const OrderContext = createContext<OrderContextValue | null>(null);
@@ -16,6 +17,7 @@ type OrderProviderProps = {
   order: OrderData;
   onUpdateOrder: (order: OrderData) => void;
   onRequestDeleteItem: (itemId: string) => void;
+  onRequestEditItem: (itemId: string) => void;
   onClosedAction: () => void;
   children: ReactNode;
 };
@@ -24,6 +26,7 @@ export function OrderProvider({
   order,
   onUpdateOrder,
   onRequestDeleteItem,
+  onRequestEditItem,
   onClosedAction,
   children,
 }: OrderProviderProps) {
@@ -62,6 +65,17 @@ export function OrderProvider({
     [onClosedAction, onRequestDeleteItem, order.isClosed],
   );
 
+  const requestEditItem = useCallback(
+    (itemId: string) => {
+      if (order.isClosed) {
+        onClosedAction();
+        return;
+      }
+      onRequestEditItem(itemId);
+    },
+    [onClosedAction, onRequestEditItem, order.isClosed],
+  );
+
   const value = useMemo<OrderContextValue>(
     () => ({
       order,
@@ -69,8 +83,9 @@ export function OrderProvider({
       updatePortion,
       splitItemEvenly: splitEvenly,
       requestDeleteItem,
+      requestEditItem,
     }),
-    [order, splitEvenly, requestDeleteItem, updatePortion],
+    [order, splitEvenly, requestDeleteItem, requestEditItem, updatePortion],
   );
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;

@@ -8,3 +8,7 @@ export function isValidPortion(portion: string | number): boolean {
   const num = typeof portion === 'string' ? parseFloat(portion) : portion;
   return !Number.isNaN(num) && num >= VALIDATION.PORTION_MIN && num <= VALIDATION.PORTION_MAX;
 }
+
+export function isValidQuantity(quantity: number): boolean {
+  return Number.isInteger(quantity) && quantity > 0;
+}
