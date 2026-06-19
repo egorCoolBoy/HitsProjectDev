@@ -24,6 +24,8 @@ public interface IOrderService
 
     Task DeleteAsync(long userId, long orderId);
 
+    Task RemoveParticipantAsync(long userId, long orderId, long participantUserId);
+
     Task<OrderResponse> SetStatusAsync(long userId, long orderId, bool isClosed);
 
     Task<OrderResponse> UpdateTitleAsync(long userId, long orderId, string? title);

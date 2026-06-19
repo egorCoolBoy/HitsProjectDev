@@ -116,6 +116,33 @@ public sealed class OrdersController : ControllerBase
     }
 
     [Authorize]
+    [HttpDelete("{id:long}/participants/{participantUserId:long}")]
+    public async Task<IActionResult> RemoveParticipant(long id, long participantUserId)
+    {
+        try
+        {
+            await _orderService.RemoveParticipantAsync(User.GetUserId(), id, participantUserId);
+            return NoContent();
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Problem(exception.Message);
+        }
+        catch (OrderNotFoundException exception)
+        {
+            return NotFound(new { message = exception.Message });
+        }
+        catch (OrderParticipantNotFoundException exception)
+        {
+            return NotFound(new { message = exception.Message });
+        }
+        catch (OrderAccessDeniedException)
+        {
+            return Forbid();
+        }
+    }
+
+    [Authorize]
     [HttpPatch("{id:long}/status")]
     public async Task<ActionResult<OrderResponse>> SetStatus(long id, [FromBody] ChangeOrderStatusRequest request)
     {

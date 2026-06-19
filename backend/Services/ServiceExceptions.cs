@@ -32,6 +32,14 @@ public sealed class OrderExpenseNotFoundException : Exception
     }
 }
 
+public sealed class OrderParticipantNotFoundException : Exception
+{
+    public OrderParticipantNotFoundException(long orderId, long userId)
+        : base($"User {userId} is not a participant of order {orderId}.")
+    {
+    }
+}
+
 public sealed class DebtNotFoundException : Exception
 {
     public DebtNotFoundException(long debtId)

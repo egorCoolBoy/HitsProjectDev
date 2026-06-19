@@ -149,6 +149,58 @@ public sealed class OrderService : IOrderService
         await _dbContext.SaveChangesAsync();
     }
 
+    public async Task RemoveParticipantAsync(long userId, long orderId, long participantUserId)
+    {
+        var order = await _dbContext.Orders.FirstOrDefaultAsync(item => item.Id == orderId);
+        if (order is null)
+        {
+            throw new OrderNotFoundException(orderId);
+        }
+
+        if (order.IsClosed)
+        {
+            throw new InvalidOperationException("Order is closed and cannot be modified.");
+        }
+
+        var requesterMembership = await _dbContext.OrderUsers
+            .FirstOrDefaultAsync(item => item.UserId == userId && item.OrderId == orderId);
+
+        if (requesterMembership is null || requesterMembership.Role != OrderRole.Creator)
+        {
+            throw new OrderAccessDeniedException(orderId, userId);
+        }
+
+        var participantMembership = await _dbContext.OrderUsers
+            .FirstOrDefaultAsync(item => item.UserId == participantUserId && item.OrderId == orderId);
+
+        if (participantMembership is null)
+        {
+            throw new OrderParticipantNotFoundException(orderId, participantUserId);
+        }
+
+        if (participantMembership.Role == OrderRole.Creator)
+        {
+            throw new InvalidOperationException("Order creator cannot be removed from the order.");
+        }
+
+        var orderExpenseIds = await _dbContext.OrderExpenses
+            .Where(item => item.OrderId == orderId)
+            .Select(item => item.Id)
+            .ToListAsync();
+
+        var expenseParticipations = _dbContext.OrderExpenseUsers
+            .Where(item => item.UserId == participantUserId && orderExpenseIds.Contains(item.OrderExpenseId));
+
+        var payments = _dbContext.Payments
+            .Where(item => item.OrderId == orderId && item.UserId == participantUserId);
+
+        _dbContext.OrderExpenseUsers.RemoveRange(expenseParticipations);
+        _dbContext.Payments.RemoveRange(payments);
+        _dbContext.OrderUsers.Remove(participantMembership);
+
+        await _dbContext.SaveChangesAsync();
+    }
+
     public async Task<OrderResponse> SetStatusAsync(long userId, long orderId, bool isClosed)
     {
         var order = await GetOrderWithParticipantsAsync(orderId);
