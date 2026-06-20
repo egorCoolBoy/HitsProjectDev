@@ -11,15 +11,18 @@ public sealed class AuthService : IAuthService
     private readonly AppDbContext _dbContext;
     private readonly ITelegramInitDataValidator _telegramValidator;
     private readonly IJwtTokenService _jwtTokenService;
+    private readonly IOrderRealtimeNotifier _realtimeNotifier;
 
     public AuthService(
         AppDbContext dbContext,
         ITelegramInitDataValidator telegramValidator,
-        IJwtTokenService jwtTokenService)
+        IJwtTokenService jwtTokenService,
+        IOrderRealtimeNotifier realtimeNotifier)
     {
         _dbContext = dbContext;
         _telegramValidator = telegramValidator;
         _jwtTokenService = jwtTokenService;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<AuthTelegramResponse> AuthenticateTelegramAsync(AuthTelegramRequest request)
@@ -69,6 +72,7 @@ public sealed class AuthService : IAuthService
             var membership = await _dbContext.OrderUsers
                 .FirstOrDefaultAsync(item => item.UserId == user.Id && item.OrderId == orderId);
 
+            var added = false;
             if (membership is null)
             {
                 membership = new OrderUser
@@ -80,6 +84,19 @@ public sealed class AuthService : IAuthService
                 };
                 _dbContext.OrderUsers.Add(membership);
                 await _dbContext.SaveChangesAsync();
+                added = true;
+            }
+
+            if (added)
+            {
+                var createdMembership = await _dbContext.OrderUsers
+                    .Include(item => item.User)
+                    .FirstAsync(item => item.UserId == user.Id && item.OrderId == orderId);
+
+                await _realtimeNotifier.ParticipantAddedAsync(
+                    orderId,
+                    user.Id,
+                    OrderParticipantResponse.From(createdMembership));
             }
 
             orderResponse = OrderMembershipResponse.From(order.Id, membership.Role);

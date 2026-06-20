@@ -128,7 +128,10 @@ public sealed class OrderExpenseService : IOrderExpenseService
         }
 
         await _dbContext.SaveChangesAsync();
-        return await MapExpenseAsync(userId, expense);
+        var response = await MapExpenseAsync(userId, expense);
+        await _realtimeNotifier.ExpenseParticipationUpdatedAsync(orderId, userId, response);
+
+        return response;
     }
 
     public async Task<OrderExpenseResponse> SetParticipationsAsync(long userId, long orderId, long expenseId, SetExpenseParticipationsRequest request)
@@ -192,7 +195,10 @@ public sealed class OrderExpenseService : IOrderExpenseService
         }
 
         await _dbContext.SaveChangesAsync();
-        return await MapExpenseAsync(userId, expense);
+        var response = await MapExpenseAsync(userId, expense);
+        await _realtimeNotifier.ExpenseParticipationUpdatedAsync(orderId, userId, response);
+
+        return response;
     }
 
     private async Task<Order> GetOrderWithAccessAsync(long userId, long orderId)

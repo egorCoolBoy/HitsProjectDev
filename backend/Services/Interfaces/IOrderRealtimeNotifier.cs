@@ -10,6 +10,12 @@ public interface IOrderRealtimeNotifier
 
     Task ExpenseDeletedAsync(long orderId, long actorUserId, long expenseId);
 
+    Task ExpenseParticipationUpdatedAsync(long orderId, long actorUserId, OrderExpenseResponse expense);
+
+    Task ParticipantAddedAsync(long orderId, long actorUserId, OrderParticipantResponse participant);
+
+    Task ParticipantRemovedAsync(long orderId, long actorUserId, long participantUserId);
+
     Task PaymentCreatedAsync(long orderId, long actorUserId, PaymentResponse payment);
 
     Task PaymentUpdatedAsync(long orderId, long actorUserId, PaymentResponse payment);

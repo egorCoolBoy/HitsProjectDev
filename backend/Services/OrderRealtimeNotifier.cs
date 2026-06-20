@@ -31,6 +31,24 @@ public sealed class OrderRealtimeNotifier : IOrderRealtimeNotifier
         });
     }
 
+    public Task ExpenseParticipationUpdatedAsync(long orderId, long actorUserId, OrderExpenseResponse expense)
+    {
+        return SendAsync(orderId, "orderExpenseParticipationUpdated", actorUserId, expense);
+    }
+
+    public Task ParticipantAddedAsync(long orderId, long actorUserId, OrderParticipantResponse participant)
+    {
+        return SendAsync(orderId, "orderParticipantAdded", actorUserId, participant);
+    }
+
+    public Task ParticipantRemovedAsync(long orderId, long actorUserId, long participantUserId)
+    {
+        return SendAsync(orderId, "orderParticipantRemoved", actorUserId, new OrderParticipantRemovedPayload
+        {
+            UserId = participantUserId
+        });
+    }
+
     public Task PaymentCreatedAsync(long orderId, long actorUserId, PaymentResponse payment)
     {
         return SendAsync(orderId, "paymentCreated", actorUserId, payment);

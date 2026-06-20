@@ -321,6 +321,11 @@ public sealed class OrderExpenseDeletedPayload
     public long ExpenseId { get; set; }
 }
 
+public sealed class OrderParticipantRemovedPayload
+{
+    public long UserId { get; set; }
+}
+
 public sealed class PaymentDeletedPayload
 {
     public long PaymentId { get; set; }

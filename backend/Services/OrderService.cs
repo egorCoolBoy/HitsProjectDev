@@ -11,15 +11,18 @@ public sealed class OrderService : IOrderService
     private readonly AppDbContext _dbContext;
     private readonly TelegramOptions _telegramOptions;
     private readonly IDebtService _debtService;
+    private readonly IOrderRealtimeNotifier _realtimeNotifier;
 
     public OrderService(
         AppDbContext dbContext,
         IOptions<TelegramOptions> telegramOptions,
-        IDebtService debtService)
+        IDebtService debtService,
+        IOrderRealtimeNotifier realtimeNotifier)
     {
         _dbContext = dbContext;
         _telegramOptions = telegramOptions.Value;
         _debtService = debtService;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<OrderResponse> CreateAsync(long userId, string? title)
@@ -199,6 +202,7 @@ public sealed class OrderService : IOrderService
         _dbContext.OrderUsers.Remove(participantMembership);
 
         await _dbContext.SaveChangesAsync();
+        await _realtimeNotifier.ParticipantRemovedAsync(orderId, userId, participantUserId);
     }
 
     public async Task<OrderResponse> SetStatusAsync(long userId, long orderId, bool isClosed)
@@ -278,6 +282,7 @@ public sealed class OrderService : IOrderService
         var membership = await _dbContext.OrderUsers
             .FirstOrDefaultAsync(item => item.UserId == userId && item.OrderId == orderId);
 
+        var added = false;
         if (membership is null)
         {
             membership = new OrderUser
@@ -289,6 +294,19 @@ public sealed class OrderService : IOrderService
             };
             _dbContext.OrderUsers.Add(membership);
             await _dbContext.SaveChangesAsync();
+            added = true;
+        }
+
+        if (added)
+        {
+            var createdMembership = await _dbContext.OrderUsers
+                .Include(item => item.User)
+                .FirstAsync(item => item.UserId == userId && item.OrderId == orderId);
+
+            await _realtimeNotifier.ParticipantAddedAsync(
+                orderId,
+                userId,
+                OrderParticipantResponse.From(createdMembership));
         }
 
         return OrderMembershipResponse.From(orderId, membership.Role);
