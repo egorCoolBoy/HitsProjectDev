@@ -29,10 +29,17 @@ export function Home({
   onDeleteOrder,
 }: HomeProps) {
   const { myDebts, myCredits } = collectUserDebts(orders, currentUserId);
+  const [activeMainTab, setActiveMainTab] = useState<'orders' | 'debts'>('orders');
+  const [activeOrderTab, setActiveOrderTab] = useState<'open' | 'closed'>('open');
+  const [activeDebtTab, setActiveDebtTab] = useState<'debtors' | 'creditors'>('debtors');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const openOrders = orders.filter((order) => !order.isClosed);
+  const closedOrders = orders.filter((order) => order.isClosed);
+  const visibleOrders = activeOrderTab === 'open' ? openOrders : closedOrders;
+  const visibleDebts = activeDebtTab === 'debtors' ? myCredits : myDebts;
 
   const handleCreateSubmit = async (values: Record<string, string>) => {
     const title = values.title?.trim();
@@ -72,61 +79,109 @@ export function Home({
 
       <main className="flex-1 overflow-auto pb-24">
         <div className="max-w-md mx-auto p-4 space-y-4">
-          {myDebts.length > 0 && (
-            <DebtSection
-              title="Я должен"
-              icon={<TrendingDown className="size-5" />}
-              titleClassName="text-red-700"
-              debts={myDebts}
-              variant="debt"
-              onOpenOrder={onOpenOrder}
-            />
-          )}
+          <SegmentedTabs
+            tabs={[
+              { id: 'orders', label: 'Заказы' },
+              { id: 'debts', label: 'Долги' },
+            ]}
+            activeTab={activeMainTab}
+            onChange={setActiveMainTab}
+          />
 
-          {myCredits.length > 0 && (
-            <DebtSection
-              title="Мне должны"
-              icon={<TrendingUp className="size-5" />}
-              titleClassName="text-green-700"
-              debts={myCredits}
-              variant="credit"
-              onOpenOrder={onOpenOrder}
-            />
-          )}
+          {activeMainTab === 'orders' ? (
+            <>
+              <SegmentedTabs
+                tabs={[
+                  { id: 'open', label: `Открытые (${openOrders.length})` },
+                  { id: 'closed', label: `Закрытые (${closedOrders.length})` },
+                ]}
+                activeTab={activeOrderTab}
+                onChange={setActiveOrderTab}
+              />
 
-          {orders.length > 0 ? (
-            <div className="space-y-3">
-              <h2 className="font-semibold text-gray-700 px-2">Мои заказы</h2>
-              {orders.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onOpen={() => onOpenOrder(order.id)}
-                  onDelete={(e) => {
-                    e.stopPropagation();
-                    setDeleteOrderId(order.id);
-                  }}
+              {visibleOrders.length > 0 ? (
+                <div className="space-y-3">
+                  <h2 className="font-semibold text-gray-700 px-2">
+                    {activeOrderTab === 'open' ? 'Открытые заказы' : 'Закрытые заказы'}
+                  </h2>
+                  {visibleOrders.map((order) => (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      onOpen={() => onOpenOrder(order.id)}
+                      onDelete={(e) => {
+                        e.stopPropagation();
+                        setDeleteOrderId(order.id);
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title={activeOrderTab === 'open' ? 'Нет открытых заказов' : 'Нет закрытых заказов'}
+                  description={
+                    activeOrderTab === 'open'
+                      ? 'Создайте новый заказ, чтобы начать делить счёт'
+                      : 'Здесь появятся счета после закрытия'
+                  }
                 />
-              ))}
-            </div>
+              )}
+            </>
           ) : (
-            <EmptyState />
+            <>
+              <SegmentedTabs
+                tabs={[
+                  { id: 'debtors', label: `Должники (${myCredits.length})` },
+                  { id: 'creditors', label: `Кредиторы (${myDebts.length})` },
+                ]}
+                activeTab={activeDebtTab}
+                onChange={setActiveDebtTab}
+              />
+
+              {visibleDebts.length > 0 ? (
+                <DebtSection
+                  title={activeDebtTab === 'debtors' ? 'Кто мне должен' : 'Кому я должен'}
+                  icon={
+                    activeDebtTab === 'debtors' ? (
+                      <TrendingUp className="size-5" />
+                    ) : (
+                      <TrendingDown className="size-5" />
+                    )
+                  }
+                  titleClassName={activeDebtTab === 'debtors' ? 'text-green-700' : 'text-red-700'}
+                  debts={visibleDebts}
+                  variant={activeDebtTab === 'debtors' ? 'credit' : 'debt'}
+                  onOpenOrder={onOpenOrder}
+                />
+              ) : (
+                <EmptyDebtsState
+                  title={activeDebtTab === 'debtors' ? 'Вам пока никто не должен' : 'Вы пока никому не должны'}
+                  description={
+                    activeDebtTab === 'debtors'
+                      ? 'Здесь появятся долги других участников после закрытия счетов'
+                      : 'Здесь появятся ваши долги после закрытия счетов'
+                  }
+                />
+              )}
+            </>
           )}
         </div>
       </main>
 
-      <FixedBottomBar>
-        <button
-          onClick={() => {
-            setCreateError(null);
-            setCreateDialogOpen(true);
-          }}
-          className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 flex items-center justify-center gap-2 font-semibold hover:bg-[#0077bb] transition-colors"
-        >
-          <Plus className="size-5" />
-          <span>Создать новый заказ</span>
-        </button>
-      </FixedBottomBar>
+      {activeMainTab === 'orders' && (
+        <FixedBottomBar>
+          <button
+            onClick={() => {
+              setCreateError(null);
+              setCreateDialogOpen(true);
+            }}
+            className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 flex items-center justify-center gap-2 font-semibold hover:bg-[#0077bb] transition-colors"
+          >
+            <Plus className="size-5" />
+            <span>Создать новый заказ</span>
+          </button>
+        </FixedBottomBar>
+      )}
 
       <FormDialog
         open={createDialogOpen}
@@ -160,6 +215,33 @@ export function Home({
         }}
         onCancel={() => setDeleteOrderId(null)}
       />
+    </div>
+  );
+}
+
+type SegmentedTabsProps<T extends string> = {
+  tabs: Array<{ id: T; label: string }>;
+  activeTab: T;
+  onChange: (tab: T) => void;
+};
+
+function SegmentedTabs<T extends string>({ tabs, activeTab, onChange }: SegmentedTabsProps<T>) {
+  return (
+    <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-200 p-1">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onChange(tab.id)}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+            activeTab === tab.id
+              ? 'bg-white text-[#0088cc] shadow-sm'
+              : 'text-gray-600 hover:text-gray-800'
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -277,14 +359,32 @@ function OrderCard({ order, onOpen, onDelete }: OrderCardProps) {
   );
 }
 
-function EmptyState() {
+function EmptyState({
+  title = 'У вас пока нет заказов',
+  description = 'Создайте первый заказ, нажав на кнопку выше',
+}: {
+  title?: string;
+  description?: string;
+}) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
       <div className="size-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
         <Plus className="size-8 text-gray-400" />
       </div>
-      <p className="text-gray-600 mb-1">У вас пока нет заказов</p>
-      <p className="text-sm text-gray-500">Создайте первый заказ, нажав на кнопку выше</p>
+      <p className="text-gray-600 mb-1">{title}</p>
+      <p className="text-sm text-gray-500">{description}</p>
+    </div>
+  );
+}
+
+function EmptyDebtsState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+      <div className="size-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+        <TrendingUp className="size-8 text-gray-400" />
+      </div>
+      <p className="text-gray-600 mb-1">{title}</p>
+      <p className="text-sm text-gray-500">{description}</p>
     </div>
   );
 }
