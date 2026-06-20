@@ -21,17 +21,14 @@ type SummaryProps = {
 
 export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
-  const [closeConfirmations, setCloseConfirmations] = useState<Record<string, boolean>>({});
   const [isClosing, setIsClosing] = useState(false);
 
   const totals = calculateParticipantTotals(order);
   const debts = calculateDebts(order);
   const grandTotal = calculateOrderTotal(order.items);
   const totalPaid = order.payments.reduce((sum, p) => sum + p.amount, 0);
-  const allParticipantsConfirmed = order.participants.every((participant) => closeConfirmations[participant.id]);
 
   const openCloseDialog = () => {
-    setCloseConfirmations({});
     setCloseDialogOpen(true);
   };
 
@@ -117,19 +114,8 @@ export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
 
       <CloseOrderConfirmationDialog
         open={closeDialogOpen}
-        order={order}
-        confirmations={closeConfirmations}
         isClosing={isClosing}
-        allParticipantsConfirmed={allParticipantsConfirmed}
-        onToggleParticipant={(participantId) =>
-          setCloseConfirmations((current) => ({
-            ...current,
-            [participantId]: !current[participantId],
-          }))
-        }
         onConfirm={async () => {
-          if (!allParticipantsConfirmed) return;
-
           setIsClosing(true);
           try {
             await onCloseOrder();
@@ -141,7 +127,6 @@ export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
         onCancel={() => {
           if (isClosing) return;
           setCloseDialogOpen(false);
-          setCloseConfirmations({});
         }}
       />
     </div>
@@ -150,20 +135,12 @@ export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
 
 function CloseOrderConfirmationDialog({
   open,
-  order,
-  confirmations,
   isClosing,
-  allParticipantsConfirmed,
-  onToggleParticipant,
   onConfirm,
   onCancel,
 }: {
   open: boolean;
-  order: OrderData;
-  confirmations: Record<string, boolean>;
   isClosing: boolean;
-  allParticipantsConfirmed: boolean;
-  onToggleParticipant: (participantId: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -171,33 +148,6 @@ function CloseOrderConfirmationDialog({
     <Modal open={open} onClose={onCancel} title="Подтверждение закрытия">
       <div className="space-y-4">
         <p className="text-sm text-gray-600">{UI_MESSAGES.CONFIRM_CLOSE_ORDER}</p>
-        <p className="text-sm text-gray-600">
-          Закрытие будет доступно только после подтверждения всех участников.
-        </p>
-
-        <div className="space-y-2">
-          {order.participants.map((participant) => (
-            <label
-              key={participant.id}
-              className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
-            >
-              <input
-                type="checkbox"
-                checked={!!confirmations[participant.id]}
-                onChange={() => onToggleParticipant(participant.id)}
-                disabled={isClosing}
-                className="size-5 accent-[#0088cc]"
-              />
-              <ParticipantAvatar name={participant.name} color={participant.color} size="sm" />
-              <span className="font-medium text-gray-800">{participant.name}</span>
-            </label>
-          ))}
-        </div>
-
-        {!allParticipantsConfirmed && (
-          <p className="text-xs font-medium text-red-600">Нужно подтверждение каждого участника.</p>
-        )}
-
         <div className="flex gap-3">
           <button
             type="button"
@@ -210,7 +160,7 @@ function CloseOrderConfirmationDialog({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={!allParticipantsConfirmed || isClosing}
+            disabled={isClosing}
             className="flex-1 py-2.5 px-4 rounded-xl font-medium transition-colors bg-[#0088cc] hover:bg-[#0077bb] text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             {isClosing ? 'Закрытие...' : 'Закрыть'}
