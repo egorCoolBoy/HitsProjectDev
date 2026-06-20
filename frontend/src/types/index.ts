@@ -135,8 +135,8 @@ export interface TelegramData {
   };
   order: {
     id: number;
-    role: string;
-  };
+    role: 'creator' | 'member' | string;
+  } | null;
 }
 
 // Calculation types

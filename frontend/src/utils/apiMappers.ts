@@ -34,6 +34,7 @@ export function mapOrderToData(
   currentUserId: number | null,
   expenses: ApiOrderExpense[] = [],
   payments: ApiPayment[] = [],
+  currentOrderRole: OrderData['currentUserRole'] = null,
 ): OrderData {
   const participants = mapParticipants(order, currentUserId);
   const items = expenses.map(mapExpenseToItem);
@@ -42,7 +43,7 @@ export function mapOrderToData(
     id: order.id.toString(),
     name: order.title || 'Новый заказ',
     participants,
-    currentUserRole: getCurrentUserRole(order, currentUserId),
+    currentUserRole: getCurrentUserRole(order, currentUserId) ?? currentOrderRole,
     items,
     createdAt: new Date(order.createdAt).getTime(),
     payments: payments.map(mapPaymentToData),

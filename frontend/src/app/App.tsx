@@ -47,6 +47,10 @@ function AppContent() {
 
   const auth = useAuth(initData, orderIdFromUrl);
   const currentUserId = auth.data?.user?.id ?? null;
+  const currentOrderRole =
+    auth.data?.order?.role === 'creator' || auth.data?.order?.role === 'member'
+      ? auth.data.order.role
+      : null;
 
   const userProfile: UserProfile = useMemo(
     () => ({
@@ -57,7 +61,7 @@ function AppContent() {
   );
 
   const { orders, isLoading, isError, error, loadOrder, refreshOrder, createOrder, deleteOrder, patchOrder } =
-    useOrders(currentUserId);
+    useOrders(currentUserId, currentOrderRole);
   const myDebts = useMyDebts(currentUserId, orders);
 
   const orderScreen = useCurrentOrder({

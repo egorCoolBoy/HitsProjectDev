@@ -10,6 +10,17 @@ export type ExpenseInput = {
   quantity: number;
 };
 
+function toPaymentsPayload(order: OrderData) {
+  return order.participants.map((participant) => {
+    const payment = order.payments.find((item) => item.participantId === participant.id);
+
+    return {
+      userId: parseNumericId(participant.id),
+      paidAmount: payment?.amount ?? 0,
+    };
+  });
+}
+
 async function syncItemPortions(
   orderId: number,
   currentItem: OrderItem,
@@ -31,21 +42,6 @@ async function syncItemPortions(
  * All order mutations in one place.
  */
 export function useOrderMutations(refreshOrder: (orderId: string) => Promise<OrderData>) {
-  const syncPayments = useCallback(async (order: OrderData) => {
-    const orderId = parseNumericId(order.id);
-
-    await Promise.all(
-      order.participants.map((participant) => {
-        const payment = order.payments.find((item) => item.participantId === participant.id);
-
-        return orderService.upsertPayment(orderId, {
-          userId: parseNumericId(participant.id),
-          amount: payment?.amount ?? 0,
-        });
-      }),
-    );
-  }, []);
-
   const addExpense = useCallback(
     async (orderId: string, payload: ExpenseInput) => {
       await orderService.createExpense(parseNumericId(orderId), {
@@ -80,22 +76,17 @@ export function useOrderMutations(refreshOrder: (orderId: string) => Promise<Ord
 
   const closeOrder = useCallback(
     async (order: OrderData) => {
-      await syncPayments(order);
+      await orderService.calculateDebts(parseNumericId(order.id), {
+        payments: toPaymentsPayload(order),
+      });
       await orderService.changeStatus(parseNumericId(order.id), { isClosed: true });
     },
-    [syncPayments],
+    [],
   );
 
   const recalculateDebts = useCallback(async (order: OrderData) => {
     await orderService.calculateDebts(parseNumericId(order.id), {
-      payments: order.participants.map((participant) => {
-        const payment = order.payments.find((item) => item.participantId === participant.id);
-
-        return {
-          userId: parseNumericId(participant.id),
-          paidAmount: payment?.amount ?? 0,
-        };
-      }),
+      payments: toPaymentsPayload(order),
     });
   }, []);
 

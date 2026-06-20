@@ -10,14 +10,14 @@ export const ORDERS_QUERY_KEY = 'orders';
  * Read-only orders list and cache management.
  * Mutations live in useOrderMutations / useCurrentOrder.
  */
-export function useOrders(currentUserId: number | null) {
+export function useOrders(currentUserId: number | null, currentOrderRole: OrderData['currentUserRole'] = null) {
   const queryClient = useQueryClient();
 
   const ordersQuery = useQuery({
     queryKey: [ORDERS_QUERY_KEY, currentUserId],
     queryFn: async () => {
       const apiOrders = await orderService.list();
-      return apiOrders.map((order) => mapOrderToData(order, currentUserId));
+      return apiOrders.map((order) => mapOrderToData(order, currentUserId, [], [], currentOrderRole));
     },
     enabled: !!currentUserId,
   });
@@ -30,9 +30,9 @@ export function useOrders(currentUserId: number | null) {
         orderService.listExpenses(numericOrderId),
         orderService.listPayments(numericOrderId),
       ]);
-      return mapOrderToData(apiOrder, currentUserId, expenses, payments);
+      return mapOrderToData(apiOrder, currentUserId, expenses, payments, currentOrderRole);
     },
-    [currentUserId],
+    [currentOrderRole, currentUserId],
   );
 
   const refreshOrder = useCallback(
@@ -49,7 +49,7 @@ export function useOrders(currentUserId: number | null) {
   const createOrder = useCallback(
     async (title: string) => {
       const createdOrder = await orderService.create({ title });
-      const mappedOrder = mapOrderToData(createdOrder, currentUserId);
+      const mappedOrder = mapOrderToData(createdOrder, currentUserId, [], [], 'creator');
       queryClient.setQueryData<OrderData[]>([ORDERS_QUERY_KEY, currentUserId], (current) => [
         mappedOrder,
         ...(current ?? []),
