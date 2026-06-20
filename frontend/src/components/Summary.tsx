@@ -7,9 +7,9 @@ import {
   hasInvalidItemPortions,
 } from '../utils/orderCalculations';
 import { UI_MESSAGES, VALIDATION } from '../config/constants';
-import { ConfirmDialog } from './ui/ConfirmDialog';
 import { FixedBottomBar } from './ui/FixedBottomBar';
 import { MoneyAmount } from './ui/MoneyAmount';
+import { Modal } from './ui/Modal';
 import { ParticipantAvatar } from './ui/ParticipantAvatar';
 import type { DebtRelation, OrderData, ParticipantTotal } from '../types';
 
@@ -21,12 +21,19 @@ type SummaryProps = {
 
 export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [closeConfirmations, setCloseConfirmations] = useState<Record<string, boolean>>({});
   const [isClosing, setIsClosing] = useState(false);
 
   const totals = calculateParticipantTotals(order);
   const debts = calculateDebts(order);
   const grandTotal = calculateOrderTotal(order.items);
   const totalPaid = order.payments.reduce((sum, p) => sum + p.amount, 0);
+  const allParticipantsConfirmed = order.participants.every((participant) => closeConfirmations[participant.id]);
+
+  const openCloseDialog = () => {
+    setCloseConfirmations({});
+    setCloseDialogOpen(true);
+  };
 
   const handlePaymentChange = (participantId: string, value: string) => {
     const amount = parseFloat(value) || 0;
@@ -86,7 +93,7 @@ export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
       {!order.isClosed && totals.some((t) => Math.abs(t.balance) > VALIDATION.PORTION_EPSILON) && (
         <FixedBottomBar>
           <button
-            onClick={() => setCloseDialogOpen(true)}
+            onClick={openCloseDialog}
             className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 font-semibold flex items-center justify-center gap-2 hover:bg-[#0077bb] transition-colors"
           >
             <Lock className="size-5" />
@@ -108,12 +115,21 @@ export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
         </section>
       )}
 
-      <ConfirmDialog
+      <CloseOrderConfirmationDialog
         open={closeDialogOpen}
-        title="Закрыть счёт"
-        message={UI_MESSAGES.CONFIRM_CLOSE_ORDER}
-        confirmLabel={isClosing ? 'Закрытие...' : 'Закрыть'}
+        order={order}
+        confirmations={closeConfirmations}
+        isClosing={isClosing}
+        allParticipantsConfirmed={allParticipantsConfirmed}
+        onToggleParticipant={(participantId) =>
+          setCloseConfirmations((current) => ({
+            ...current,
+            [participantId]: !current[participantId],
+          }))
+        }
         onConfirm={async () => {
+          if (!allParticipantsConfirmed) return;
+
           setIsClosing(true);
           try {
             await onCloseOrder();
@@ -122,9 +138,86 @@ export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
             setIsClosing(false);
           }
         }}
-        onCancel={() => !isClosing && setCloseDialogOpen(false)}
+        onCancel={() => {
+          if (isClosing) return;
+          setCloseDialogOpen(false);
+          setCloseConfirmations({});
+        }}
       />
     </div>
+  );
+}
+
+function CloseOrderConfirmationDialog({
+  open,
+  order,
+  confirmations,
+  isClosing,
+  allParticipantsConfirmed,
+  onToggleParticipant,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  order: OrderData;
+  confirmations: Record<string, boolean>;
+  isClosing: boolean;
+  allParticipantsConfirmed: boolean;
+  onToggleParticipant: (participantId: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Modal open={open} onClose={onCancel} title="Подтверждение закрытия">
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">{UI_MESSAGES.CONFIRM_CLOSE_ORDER}</p>
+        <p className="text-sm text-gray-600">
+          Закрытие будет доступно только после подтверждения всех участников.
+        </p>
+
+        <div className="space-y-2">
+          {order.participants.map((participant) => (
+            <label
+              key={participant.id}
+              className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
+            >
+              <input
+                type="checkbox"
+                checked={!!confirmations[participant.id]}
+                onChange={() => onToggleParticipant(participant.id)}
+                disabled={isClosing}
+                className="size-5 accent-[#0088cc]"
+              />
+              <ParticipantAvatar name={participant.name} color={participant.color} size="sm" />
+              <span className="font-medium text-gray-800">{participant.name}</span>
+            </label>
+          ))}
+        </div>
+
+        {!allParticipantsConfirmed && (
+          <p className="text-xs font-medium text-red-600">Нужно подтверждение каждого участника.</p>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isClosing}
+            className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Отмена
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!allParticipantsConfirmed || isClosing}
+            className="flex-1 py-2.5 px-4 rounded-xl font-medium transition-colors bg-[#0088cc] hover:bg-[#0077bb] text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            {isClosing ? 'Закрытие...' : 'Закрыть'}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
