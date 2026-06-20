@@ -36,18 +36,28 @@ export function mapOrderToData(
   payments: ApiPayment[] = [],
 ): OrderData {
   const participants = mapParticipants(order, currentUserId);
-  const items = expenses.map((expense) => mapExpenseToItem(expense, currentUserId));
+  const items = expenses.map(mapExpenseToItem);
 
   return {
     id: order.id.toString(),
     name: order.title || 'Новый заказ',
     participants,
+    currentUserRole: getCurrentUserRole(order, currentUserId),
     items,
     createdAt: new Date(order.createdAt).getTime(),
     payments: payments.map(mapPaymentToData),
     isClosed: order.isClosed,
     settlements: [],
   };
+}
+
+function getCurrentUserRole(
+  order: ApiOrder,
+  currentUserId: number | null,
+): OrderData['currentUserRole'] {
+  if (!currentUserId) return null;
+
+  return order.participants.find((participant) => participant.user.id === currentUserId)?.role ?? null;
 }
 
 export function mapPaymentToData(payment: ApiPayment): Payment {
@@ -70,7 +80,7 @@ function mapParticipants(order: ApiOrder, currentUserId: number | null): Partici
   }));
 }
 
-function mapExpenseToItem(expense: ApiOrderExpense, _currentUserId: number | null): OrderItem {
+function mapExpenseToItem(expense: ApiOrderExpense): OrderItem {
   return {
     id: expense.id.toString(),
     name: expense.title || 'Позиция',

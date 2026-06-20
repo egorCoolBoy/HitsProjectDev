@@ -15,11 +15,12 @@ import type { DebtRelation, OrderData, ParticipantTotal } from '../types';
 
 type SummaryProps = {
   order: OrderData;
+  canCloseOrder: boolean;
   onUpdateOrder: (order: OrderData) => void;
   onCloseOrder: () => Promise<void>;
 };
 
-export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
+export function Summary({ order, canCloseOrder, onUpdateOrder, onCloseOrder }: SummaryProps) {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
@@ -87,7 +88,7 @@ export function Summary({ order, onUpdateOrder, onCloseOrder }: SummaryProps) {
         ))}
       </section>
 
-      {!order.isClosed && totals.some((t) => Math.abs(t.balance) > VALIDATION.PORTION_EPSILON) && (
+      {canCloseOrder && !order.isClosed && totals.some((t) => Math.abs(t.balance) > VALIDATION.PORTION_EPSILON) && (
         <FixedBottomBar>
           <button
             onClick={openCloseDialog}

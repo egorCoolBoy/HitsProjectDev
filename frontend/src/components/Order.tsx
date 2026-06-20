@@ -152,7 +152,12 @@ export function Order({
             )}
 
             {activeTab === 'summary' && (
-              <Summary order={order} onUpdateOrder={onUpdateOrder} onCloseOrder={onCloseOrder} />
+              <Summary
+                order={order}
+                canCloseOrder={order.currentUserRole === 'creator'}
+                onUpdateOrder={onUpdateOrder}
+                onCloseOrder={onCloseOrder}
+              />
             )}
           </div>
         </main>
@@ -228,4 +233,4 @@ export function Order({
     </OrderProvider>
   );
 }
-
+

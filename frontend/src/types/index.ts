@@ -33,6 +33,7 @@ export interface OrderData {
   id: string;
   name: string;
   participants: Participant[];
+  currentUserRole: 'creator' | 'member' | null;
   items: OrderItem[];
   createdAt: number;
   payments: Payment[];
