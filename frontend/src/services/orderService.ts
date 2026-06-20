@@ -90,6 +90,16 @@ const orderService = {
     return response.data;
   },
 
+  requestDebtSettlement: async (debtId: number) => {
+    const response = await api.post(`/debts/${debtId}/settlement-request`);
+    return response.data;
+  },
+
+  confirmDebtSettlement: async (debtId: number) => {
+    const response = await api.post(`/debts/${debtId}/settlement-confirm`);
+    return response.data;
+  },
+
   listExpenses: async (orderId: number) => {
     const response = await api.get<ApiOrderExpense[]>(`/orders/${orderId}/expenses`);
     return response.data;

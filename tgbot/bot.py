@@ -29,14 +29,20 @@ if not TELEGRAM_MINIAPP_URL:
     raise RuntimeError('TELEGRAM_MINIAPP_URL is not set')
 
 
-def build_miniapp_url(order_id: str | int | None = None) -> str:
+def build_miniapp_url(order_id: str | int | None = None, debt_id: str | int | None = None) -> str:
     """Attach order id for Mini App if deep-link payload contains one."""
-    if not order_id:
+    if not order_id and not debt_id:
         return TELEGRAM_MINIAPP_URL
 
     parsed = urlsplit(TELEGRAM_MINIAPP_URL)
     query = dict(parse_qsl(parsed.query, keep_blank_values=True))
-    query['orderId'] = str(order_id)
+
+    if order_id:
+        query['orderId'] = str(order_id)
+
+    if debt_id:
+        query['debtId'] = str(debt_id)
+
     new_query = urlencode(query)
     return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, new_query, parsed.fragment))
 
@@ -106,9 +112,18 @@ def build_debt_message(debts: list[dict]) -> tuple[str, InlineKeyboardMarkup | N
 
 
 async def fetch_active_debts() -> list[dict]:
+    debts = await fetch_debts('active')
+    return [debt for debt in debts if debt.get('status') in (None, 'active', 'Active', 0)]
+
+
+async def fetch_settlement_requested_debts() -> list[dict]:
+    return await fetch_debts('settlementRequested')
+
+
+async def fetch_debts(status: str) -> list[dict]:
     url = f'{BACKEND_API_URL}/bot/debts'
     headers = {'X-Bot-Token': BOT_TOKEN}
-    params = {'status': 'active', 'sortDirection': 'desc'}
+    params = {'status': status, 'sortDirection': 'desc'}
 
     async with httpx.AsyncClient(timeout=20) as client:
         response = await client.get(url, headers=headers, params=params)
@@ -132,6 +147,22 @@ def group_debts_by_debtor(debts: list[dict]) -> dict[int, list[dict]]:
 
         if not telegram_id:
             logger.warning('Debt %s has no debtor.telegramId', debt.get('debtId'))
+            continue
+
+        grouped.setdefault(int(telegram_id), []).append(debt)
+
+    return grouped
+
+
+def group_debts_by_creditor(debts: list[dict]) -> dict[int, list[dict]]:
+    grouped: dict[int, list[dict]] = {}
+
+    for debt in debts:
+        creditor = debt.get('creditor') or {}
+        telegram_id = creditor.get('telegramId')
+
+        if not telegram_id:
+            logger.warning('Debt %s has no creditor.telegramId', debt.get('debtId'))
             continue
 
         grouped.setdefault(int(telegram_id), []).append(debt)
@@ -204,12 +235,92 @@ async def send_debt_reminders(application: Application) -> None:
             logger.warning('Failed to send debt reminder to telegram_id=%s: %s', telegram_id, exception)
 
 
+def build_settlement_request_message(debts: list[dict]) -> tuple[str, InlineKeyboardMarkup | None]:
+    lines = ['Запрос на погашение долга в SplitBot', '']
+
+    for debt in debts:
+        order = debt.get('order') or {}
+        debtor = debt.get('debtor') or {}
+        order_title = order.get('title') or f"заказ #{order.get('id')}"
+        debtor_name = user_display_name(debtor)
+        amount = format_amount(debt.get('amount'))
+
+        lines.append(f'• Заказ: {order_title}')
+        lines.append(f'  Должник: {debtor_name}')
+        lines.append(f'  Сумма: {amount} ₽')
+
+    lines.append('')
+    lines.append('Откройте приложение и подтвердите или отклоните погашение.')
+
+    first_debt = debts[0] if debts else {}
+    first_order = first_debt.get('order') or {}
+    debt_id = first_debt.get('debtId')
+    order_id = first_order.get('id')
+    keyboard = None
+
+    if debt_id:
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton(
+                text='Подтвердить погашение',
+                web_app=WebAppInfo(url=build_miniapp_url(order_id=order_id, debt_id=debt_id)),
+            )]]
+        )
+
+    return '\n'.join(lines), keyboard
+
+
+def filter_new_settlement_requests(application: Application, debts: list[dict]) -> list[dict]:
+    sent_keys = application.bot_data.setdefault('sent_settlement_request_keys', set())
+    active_keys = {debt_key(debt) for debt in debts}
+    new_debts = [debt for debt in debts if debt_key(debt) not in sent_keys]
+
+    for key in list(sent_keys):
+        if key not in active_keys:
+            sent_keys.remove(key)
+
+    return new_debts
+
+
+def mark_settlement_requests_as_sent(application: Application, debts: list[dict]) -> None:
+    sent_keys = application.bot_data.setdefault('sent_settlement_request_keys', set())
+
+    for debt in debts:
+        sent_keys.add(debt_key(debt))
+
+
+async def send_settlement_request_notifications(application: Application) -> None:
+    debts = await fetch_settlement_requested_debts()
+    new_debts = filter_new_settlement_requests(application, debts)
+    grouped_debts = group_debts_by_creditor(new_debts)
+
+    if not grouped_debts:
+        logger.info('No new settlement requests.')
+        return
+
+    for telegram_id, creditor_debts in grouped_debts.items():
+        for debt in creditor_debts:
+            message, keyboard = build_settlement_request_message([debt])
+
+            try:
+                await application.bot.send_message(
+                    chat_id=telegram_id,
+                    text=message,
+                    reply_markup=keyboard,
+                    disable_web_page_preview=True,
+                )
+                mark_settlement_requests_as_sent(application, [debt])
+                logger.info('Sent settlement request to telegram_id=%s, debt=%s', telegram_id, debt.get('debtId'))
+            except TelegramError as exception:
+                logger.warning('Failed to send settlement request to telegram_id=%s: %s', telegram_id, exception)
+
+
 async def debt_reminder_loop(application: Application) -> None:
     await asyncio.sleep(max(0, DEBT_REMINDER_INITIAL_DELAY_SECONDS))
 
     while True:
         try:
             await send_debt_reminders(application)
+            await send_settlement_request_notifications(application)
         except asyncio.CancelledError:
             raise
         except Exception:

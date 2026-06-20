@@ -7,6 +7,7 @@ import { useTelegram } from '../hooks/useTelegram';
 import { useOrders } from '../hooks/useOrders';
 import { useCurrentOrder } from '../hooks/useCurrentOrder';
 import { MY_DEBTS_QUERY_KEY, useMyDebts } from '../hooks/useMyDebts';
+import orderService from '../services/orderService';
 import type { UserProfile } from '../types';
 import { UI_MESSAGES } from '../config/constants';
 
@@ -33,6 +34,12 @@ function AppContent() {
   const { initData, user } = useTelegram();
   const orderIdFromUrl = useMemo(() => {
     const value = new URLSearchParams(window.location.search).get('orderId');
+    if (!value) return null;
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }, []);
+  const debtIdFromUrl = useMemo(() => {
+    const value = new URLSearchParams(window.location.search).get('debtId');
     if (!value) return null;
     const parsed = parseInt(value, 10);
     return Number.isNaN(parsed) ? null : parsed;
@@ -90,6 +97,7 @@ function AppContent() {
           currentUserId={currentUserId}
           orders={orders}
           backendDebts={myDebts.data}
+          settlementDebtId={debtIdFromUrl?.toString() ?? null}
           onCreateOrder={async (title) => {
             await createOrder(title);
           }}
@@ -97,6 +105,14 @@ function AppContent() {
           onDeleteOrder={async (orderId) => {
             await deleteOrder(orderId);
             orderScreen.clearIfDeleted(orderId);
+          }}
+          onRequestDebtSettlement={async (debtId) => {
+            await orderService.requestDebtSettlement(parseInt(debtId, 10));
+            await queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] });
+          }}
+          onConfirmDebtSettlement={async (debtId) => {
+            await orderService.confirmDebtSettlement(parseInt(debtId, 10));
+            await queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] });
           }}
         />
       ) : (

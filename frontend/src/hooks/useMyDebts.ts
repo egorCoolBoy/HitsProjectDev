@@ -10,13 +10,14 @@ function getUserName(user: ApiDebt['debtor']): string {
 }
 
 function isSettled(debt: ApiDebt): boolean {
-  return debt.status === 'Settled' || debt.status === 2;
+  return debt.status === 'settled' || debt.status === 2;
 }
 
 function mapDebt(debt: ApiDebt, orders: OrderData[]): DebtSummary {
   const order = orders.find((item) => item.id === debt.orderId.toString());
 
   return {
+    debtId: debt.id.toString(),
     orderId: debt.orderId.toString(),
     orderName: order?.name ?? `Order ${debt.orderId}`,
     creditorId: debt.creditorId.toString(),
@@ -27,6 +28,7 @@ function mapDebt(debt: ApiDebt, orders: OrderData[]): DebtSummary {
     debtorColor: getParticipantColor(debt.debtorId.toString()),
     amount: debt.amount,
     settled: isSettled(debt),
+    status: debt.status,
   };
 }
 

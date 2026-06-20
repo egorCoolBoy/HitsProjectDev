@@ -110,7 +110,7 @@ export interface ApiDebt {
   creditorId: number;
   creditor: ApiUser;
   amount: number;
-  status: 'Active' | 'SettlementRequested' | 'Settled' | number;
+  status: 'active' | 'settlementRequested' | 'settled' | number;
   createdAt: string;
   settledAt: string | null;
 }
@@ -161,6 +161,7 @@ export interface DebtRelation {
 }
 
 export interface DebtSummary {
+  debtId?: string;
   orderId: string;
   orderName: string;
   creditorId: string;
@@ -171,4 +172,5 @@ export interface DebtSummary {
   debtorColor: string;
   amount: number;
   settled: boolean;
+  status?: ApiDebt['status'];
 }

@@ -19,9 +19,12 @@ type HomeProps = {
     myDebts: DebtSummary[];
     myCredits: DebtSummary[];
   };
+  settlementDebtId?: string | null;
   onCreateOrder: (title: string) => Promise<void>;
   onOpenOrder: (orderId: string) => void;
   onDeleteOrder: (orderId: string) => void;
+  onRequestDebtSettlement: (debtId: string) => Promise<void>;
+  onConfirmDebtSettlement: (debtId: string) => Promise<void>;
 };
 
 export function Home({
@@ -29,9 +32,12 @@ export function Home({
   currentUserId,
   orders,
   backendDebts,
+  settlementDebtId,
   onCreateOrder,
   onOpenOrder,
   onDeleteOrder,
+  onRequestDebtSettlement,
+  onConfirmDebtSettlement,
 }: HomeProps) {
   const fallbackDebts = collectUserDebts(orders, currentUserId);
   const { myDebts, myCredits } = backendDebts ?? fallbackDebts;
@@ -41,11 +47,17 @@ export function Home({
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
+  const [dismissedSettlementDebtId, setDismissedSettlementDebtId] = useState<string | null>(null);
+  const [settlementActionDebtId, setSettlementActionDebtId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const openOrders = orders.filter((order) => !order.isClosed);
   const closedOrders = orders.filter((order) => order.isClosed);
   const visibleOrders = activeOrderTab === 'open' ? openOrders : closedOrders;
   const visibleDebts = activeDebtTab === 'debtors' ? myCredits : myDebts;
+  const confirmDebt =
+    settlementDebtId && dismissedSettlementDebtId !== settlementDebtId
+      ? myCredits.find((debt) => debt.debtId === settlementDebtId && debt.status === 'settlementRequested')
+      : undefined;
 
   const handleCreateSubmit = async (values: Record<string, string>) => {
     const title = values.title?.trim();
@@ -158,6 +170,7 @@ export function Home({
                   debts={visibleDebts}
                   variant={activeDebtTab === 'debtors' ? 'credit' : 'debt'}
                   onOpenOrder={onOpenOrder}
+                  onRequestSettlement={onRequestDebtSettlement}
                 />
               ) : (
                 <EmptyDebtsState
@@ -221,6 +234,30 @@ export function Home({
         }}
         onCancel={() => setDeleteOrderId(null)}
       />
+
+      <ConfirmDialog
+        open={confirmDebt !== undefined}
+        title="Подтвердить погашение"
+        message={
+          confirmDebt
+            ? `${confirmDebt.debtorName} просит подтвердить погашение долга ${confirmDebt.amount.toFixed(2)} ₽ по заказу "${confirmDebt.orderName}".`
+            : ''
+        }
+        confirmLabel={settlementActionDebtId === confirmDebt?.debtId ? 'Подтверждаем...' : 'Подтвердить'}
+        cancelLabel="Позже"
+        onConfirm={() => {
+          if (!confirmDebt?.debtId) return;
+
+          setSettlementActionDebtId(confirmDebt.debtId);
+          onConfirmDebtSettlement(confirmDebt.debtId).finally(() => {
+            setSettlementActionDebtId(null);
+            setDismissedSettlementDebtId(confirmDebt.debtId ?? null);
+          });
+        }}
+        onCancel={() => {
+          setDismissedSettlementDebtId(confirmDebt?.debtId ?? settlementDebtId ?? null);
+        }}
+      />
     </div>
   );
 }
@@ -259,9 +296,18 @@ type DebtSectionProps = {
   debts: DebtSummary[];
   variant: 'debt' | 'credit';
   onOpenOrder: (orderId: string) => void;
+  onRequestSettlement: (debtId: string) => Promise<void>;
 };
 
-function DebtSection({ title, icon, titleClassName, debts, variant, onOpenOrder }: DebtSectionProps) {
+function DebtSection({
+  title,
+  icon,
+  titleClassName,
+  debts,
+  variant,
+  onOpenOrder,
+  onRequestSettlement,
+}: DebtSectionProps) {
   return (
     <div className="space-y-3">
       <h2 className={`font-semibold px-2 flex items-center gap-2 ${titleClassName}`}>
@@ -274,6 +320,7 @@ function DebtSection({ title, icon, titleClassName, debts, variant, onOpenOrder 
           debt={debt}
           variant={variant}
           onClick={() => onOpenOrder(debt.orderId)}
+          onRequestSettlement={onRequestSettlement}
         />
       ))}
     </div>
@@ -284,12 +331,27 @@ type HomeDebtCardProps = {
   debt: DebtSummary;
   variant: 'debt' | 'credit';
   onClick: () => void;
+  onRequestSettlement: (debtId: string) => Promise<void>;
 };
 
-function HomeDebtCard({ debt, variant, onClick }: HomeDebtCardProps) {
+function HomeDebtCard({ debt, variant, onClick, onRequestSettlement }: HomeDebtCardProps) {
+  const [isRequesting, setIsRequesting] = useState(false);
   const isDebt = variant === 'debt';
   const counterpartyName = isDebt ? debt.creditorName : debt.debtorName;
   const counterpartyColor = isDebt ? debt.creditorColor : debt.debtorColor;
+  const isSettlementRequested = debt.status === 'settlementRequested';
+
+  const handleRequestSettlement = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!debt.debtId || isSettlementRequested || isRequesting) return;
+
+    setIsRequesting(true);
+    try {
+      await onRequestSettlement(debt.debtId);
+    } finally {
+      setIsRequesting(false);
+    }
+  };
 
   return (
     <div
@@ -311,6 +373,17 @@ function HomeDebtCard({ debt, variant, onClick }: HomeDebtCardProps) {
           className={`text-xl font-bold ${isDebt ? 'text-red-600' : 'text-green-600'}`}
         />
       </div>
+
+      {isDebt && (
+        <button
+          type="button"
+          onClick={handleRequestSettlement}
+          disabled={!debt.debtId || isSettlementRequested || isRequesting}
+          className="mt-3 w-full rounded-lg bg-[#0088cc] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0077bb] disabled:bg-gray-300 disabled:cursor-not-allowed"
+        >
+          {isSettlementRequested ? 'Ожидает подтверждения' : isRequesting ? 'Отправляем...' : 'Погасить долг'}
+        </button>
+      )}
     </div>
   );
 }
