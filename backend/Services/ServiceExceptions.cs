@@ -55,3 +55,11 @@ public sealed class PaymentNotFoundException : Exception
     {
     }
 }
+
+public sealed class PaymentAccessDeniedException : Exception
+{
+    public PaymentAccessDeniedException(long paymentId, long userId)
+        : base($"User {userId} cannot manage payment {paymentId}.")
+    {
+    }
+}

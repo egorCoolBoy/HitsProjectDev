@@ -8,10 +8,12 @@ namespace BackHits.Services;
 public sealed class PaymentService : IPaymentService
 {
     private readonly AppDbContext _dbContext;
+    private readonly IOrderRealtimeNotifier _realtimeNotifier;
 
-    public PaymentService(AppDbContext dbContext)
+    public PaymentService(AppDbContext dbContext, IOrderRealtimeNotifier realtimeNotifier)
     {
         _dbContext = dbContext;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<IReadOnlyList<PaymentResponse>> GetByOrderIdAsync(long userId, long orderId)
@@ -31,6 +33,7 @@ public sealed class PaymentService : IPaymentService
     {
         var order = await GetOrderWithAccessAsync(userId, orderId);
         EnsureMutable(order);
+        EnsureOwnPayment(userId, request.UserId);
         ValidateAmount(request.Amount);
         await EnsureParticipantAsync(orderId, request.UserId);
 
@@ -38,6 +41,7 @@ public sealed class PaymentService : IPaymentService
         var payment = await _dbContext.Payments
             .Include(item => item.User)
             .FirstOrDefaultAsync(item => item.OrderId == orderId && item.UserId == request.UserId);
+        var isNewPayment = payment is null;
 
         if (payment is null)
         {
@@ -59,7 +63,17 @@ public sealed class PaymentService : IPaymentService
 
         await _dbContext.SaveChangesAsync();
 
-        return PaymentResponse.From(await LoadPaymentAsync(payment.Id));
+        var response = PaymentResponse.From(await LoadPaymentAsync(payment.Id));
+        if (isNewPayment)
+        {
+            await _realtimeNotifier.PaymentCreatedAsync(orderId, userId, response);
+        }
+        else
+        {
+            await _realtimeNotifier.PaymentUpdatedAsync(orderId, userId, response);
+        }
+
+        return response;
     }
 
     public async Task DeleteAsync(long userId, long orderId, long paymentId)
@@ -75,8 +89,11 @@ public sealed class PaymentService : IPaymentService
             throw new PaymentNotFoundException(paymentId);
         }
 
+        EnsureOwnPayment(userId, payment.UserId, payment.Id);
+
         _dbContext.Payments.Remove(payment);
         await _dbContext.SaveChangesAsync();
+        await _realtimeNotifier.PaymentDeletedAsync(orderId, userId, paymentId, payment.UserId);
     }
 
     private async Task<Order> GetOrderWithAccessAsync(long userId, long orderId)
@@ -121,6 +138,14 @@ public sealed class PaymentService : IPaymentService
         if (order.IsClosed)
         {
             throw new InvalidOperationException("Order is closed and cannot be modified.");
+        }
+    }
+
+    private static void EnsureOwnPayment(long userId, long paymentUserId, long paymentId = 0)
+    {
+        if (paymentUserId != userId)
+        {
+            throw new PaymentAccessDeniedException(paymentId, userId);
         }
     }
 

@@ -305,6 +305,29 @@ public sealed class PaymentResponse
     }
 }
 
+public sealed class OrderRealtimeEvent<TPayload>
+{
+    public long OrderId { get; set; }
+
+    public long ActorUserId { get; set; }
+
+    public DateTimeOffset OccurredAt { get; set; }
+
+    public TPayload Payload { get; set; } = default!;
+}
+
+public sealed class OrderExpenseDeletedPayload
+{
+    public long ExpenseId { get; set; }
+}
+
+public sealed class PaymentDeletedPayload
+{
+    public long PaymentId { get; set; }
+
+    public long UserId { get; set; }
+}
+
 public sealed class CalculateOrderDebtsRequest
 {
     public IReadOnlyList<ParticipantPaymentRequest> Payments { get; set; } = Array.Empty<ParticipantPaymentRequest>();

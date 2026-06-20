@@ -8,10 +8,12 @@ namespace BackHits.Services;
 public sealed class OrderExpenseService : IOrderExpenseService
 {
     private readonly AppDbContext _dbContext;
+    private readonly IOrderRealtimeNotifier _realtimeNotifier;
 
-    public OrderExpenseService(AppDbContext dbContext)
+    public OrderExpenseService(AppDbContext dbContext, IOrderRealtimeNotifier realtimeNotifier)
     {
         _dbContext = dbContext;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<IReadOnlyList<OrderExpenseResponse>> GetAllAsync(long userId, long orderId)
@@ -51,7 +53,10 @@ public sealed class OrderExpenseService : IOrderExpenseService
         _dbContext.OrderExpenses.Add(expense);
         await _dbContext.SaveChangesAsync();
 
-        return await MapExpenseAsync(userId, expense);
+        var response = await MapExpenseAsync(userId, expense);
+        await _realtimeNotifier.ExpenseCreatedAsync(orderId, userId, response);
+
+        return response;
     }
 
     public async Task<OrderExpenseResponse> UpdateAsync(long userId, long orderId, long expenseId, UpdateOrderExpenseRequest request)
@@ -69,7 +74,10 @@ public sealed class OrderExpenseService : IOrderExpenseService
         expense.UpdatedAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync();
 
-        return await MapExpenseAsync(userId, expense);
+        var response = await MapExpenseAsync(userId, expense);
+        await _realtimeNotifier.ExpenseUpdatedAsync(orderId, userId, response);
+
+        return response;
     }
 
     public async Task DeleteAsync(long userId, long orderId, long expenseId)
@@ -81,6 +89,7 @@ public sealed class OrderExpenseService : IOrderExpenseService
 
         _dbContext.OrderExpenses.Remove(expense);
         await _dbContext.SaveChangesAsync();
+        await _realtimeNotifier.ExpenseDeletedAsync(orderId, userId, expenseId);
     }
 
     public async Task<OrderExpenseResponse> ToggleParticipationAsync(long userId, long orderId, long expenseId, ToggleOrderExpenseParticipationRequest request)

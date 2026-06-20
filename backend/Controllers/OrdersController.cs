@@ -246,6 +246,10 @@ public sealed class OrdersController : ControllerBase
         {
             return Forbid();
         }
+        catch (PaymentAccessDeniedException)
+        {
+            return Forbid();
+        }
         catch (ArgumentException exception)
         {
             return BadRequest(new { message = exception.Message });
@@ -274,6 +278,10 @@ public sealed class OrdersController : ControllerBase
             return NotFound(new { message = exception.Message });
         }
         catch (OrderAccessDeniedException)
+        {
+            return Forbid();
+        }
+        catch (PaymentAccessDeniedException)
         {
             return Forbid();
         }
