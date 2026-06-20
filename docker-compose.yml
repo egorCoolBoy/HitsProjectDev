@@ -53,12 +53,15 @@ services:
     restart: unless-stopped
     env_file:
       - ./tgbot/.env
+    volumes:
+      - tgbot_state:/app/.state
     depends_on:
       - frontend
       - backend
 
 volumes:
   postgres_data:
+  tgbot_state:
 
 networks:
   default:

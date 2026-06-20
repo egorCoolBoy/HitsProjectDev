@@ -1,7 +1,10 @@
 import asyncio
+import json
 import logging
 import os
+import time
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
@@ -20,13 +23,56 @@ TELEGRAM_MINIAPP_URL = os.getenv('TELEGRAM_MINIAPP_URL') or os.getenv('MINIAPP_U
 BACKEND_API_URL = os.getenv('BACKEND_API_URL', 'http://backend:8080').rstrip('/')
 DEBT_REMINDER_INTERVAL_SECONDS = int(os.getenv('DEBT_REMINDER_INTERVAL_SECONDS', '86400'))
 DEBT_REMINDER_INITIAL_DELAY_SECONDS = int(os.getenv('DEBT_REMINDER_INITIAL_DELAY_SECONDS', '0'))
-DEBT_REMINDER_POLL_SECONDS = int(os.getenv('DEBT_REMINDER_POLL_SECONDS', '60'))
+DEBT_REMINDER_POLL_SECONDS = int(os.getenv('DEBT_REMINDER_POLL_SECONDS', '10'))
+REMINDER_STATE_FILE = Path(os.getenv('REMINDER_STATE_FILE', '/app/.state/reminders.json'))
 
 if not BOT_TOKEN:
     raise RuntimeError('BOT_TOKEN is not set')
 
 if not TELEGRAM_MINIAPP_URL:
     raise RuntimeError('TELEGRAM_MINIAPP_URL is not set')
+
+
+def load_reminder_state() -> dict:
+    default_state = {
+        'last_sent_by_debt_id': {},
+        'sent_settlement_request_keys': [],
+    }
+
+    if not REMINDER_STATE_FILE.exists():
+        return default_state
+
+    try:
+        with REMINDER_STATE_FILE.open('r', encoding='utf-8') as file:
+            payload = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        logger.warning('Failed to load reminder state from %s', REMINDER_STATE_FILE)
+        return default_state
+
+    if not isinstance(payload, dict):
+        return default_state
+
+    last_sent = payload.get('last_sent_by_debt_id')
+    settlement_keys = payload.get('sent_settlement_request_keys')
+
+    return {
+        'last_sent_by_debt_id': last_sent if isinstance(last_sent, dict) else {},
+        'sent_settlement_request_keys': settlement_keys if isinstance(settlement_keys, list) else [],
+    }
+
+
+def save_reminder_state(application: Application) -> None:
+    state = {
+        'last_sent_by_debt_id': application.bot_data.get('last_sent_by_debt_id', {}),
+        'sent_settlement_request_keys': sorted(application.bot_data.get('sent_settlement_request_keys', set())),
+    }
+
+    try:
+        REMINDER_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with REMINDER_STATE_FILE.open('w', encoding='utf-8') as file:
+            json.dump(state, file, ensure_ascii=False, indent=2)
+    except OSError:
+        logger.warning('Failed to save reminder state to %s', REMINDER_STATE_FILE)
 
 
 def build_miniapp_url(order_id: str | int | None = None, debt_id: str | int | None = None) -> str:
@@ -182,7 +228,7 @@ def debt_key(debt: dict) -> str:
 
 
 def filter_debts_due_for_reminder(application: Application, debts: list[dict]) -> list[dict]:
-    now = asyncio.get_running_loop().time()
+    now = time.time()
     last_sent_by_debt_id = application.bot_data.setdefault('last_sent_by_debt_id', {})
     due_debts: list[dict] = []
     active_debt_keys = set()
@@ -198,16 +244,19 @@ def filter_debts_due_for_reminder(application: Application, debts: list[dict]) -
     for key in list(last_sent_by_debt_id):
         if key not in active_debt_keys:
             del last_sent_by_debt_id[key]
+            save_reminder_state(application)
 
     return due_debts
 
 
 def mark_debts_as_sent(application: Application, debts: list[dict]) -> None:
-    now = asyncio.get_running_loop().time()
+    now = time.time()
     last_sent_by_debt_id = application.bot_data.setdefault('last_sent_by_debt_id', {})
 
     for debt in debts:
         last_sent_by_debt_id[debt_key(debt)] = now
+
+    save_reminder_state(application)
 
 
 async def send_debt_reminders(application: Application) -> None:
@@ -277,6 +326,7 @@ def filter_new_settlement_requests(application: Application, debts: list[dict]) 
     for key in list(sent_keys):
         if key not in active_keys:
             sent_keys.remove(key)
+            save_reminder_state(application)
 
     return new_debts
 
@@ -286,6 +336,8 @@ def mark_settlement_requests_as_sent(application: Application, debts: list[dict]
 
     for debt in debts:
         sent_keys.add(debt_key(debt))
+
+    save_reminder_state(application)
 
 
 async def send_settlement_request_notifications(application: Application) -> None:
@@ -330,6 +382,12 @@ async def debt_reminder_loop(application: Application) -> None:
 
 
 async def post_init(application: Application) -> None:
+    reminder_state = load_reminder_state()
+    application.bot_data['last_sent_by_debt_id'] = reminder_state.get('last_sent_by_debt_id', {})
+    application.bot_data['sent_settlement_request_keys'] = set(
+        reminder_state.get('sent_settlement_request_keys', []),
+    )
+
     task = asyncio.create_task(debt_reminder_loop(application))
     application.bot_data['debt_reminder_task'] = task
     logger.info(
