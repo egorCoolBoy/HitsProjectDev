@@ -1,7 +1,9 @@
 import api from './api';
 import type {
+  ApiMyDebts,
   ApiOrder,
   ApiOrderExpense,
+  ApiPayment,
 } from '../types';
 
 export type CreateOrderPayload = {
@@ -14,6 +16,18 @@ export type ChangeOrderTitlePayload = {
 
 export type ChangeOrderStatusPayload = {
   isClosed: boolean;
+};
+
+export type UpsertPaymentPayload = {
+  userId: number;
+  amount: number;
+};
+
+export type CalculateDebtsPayload = {
+  payments: Array<{
+    userId: number;
+    paidAmount: number;
+  }>;
 };
 
 export type CreateExpensePayload = {
@@ -51,6 +65,28 @@ const orderService = {
 
   changeStatus: async (id: number, payload: ChangeOrderStatusPayload) => {
     const response = await api.patch<ApiOrder>(`/orders/${id}/status`, payload);
+    return response.data;
+  },
+
+  listPayments: async (orderId: number) => {
+    const response = await api.get<ApiPayment[]>(`/orders/${orderId}/payments`);
+    return response.data;
+  },
+
+  upsertPayment: async (orderId: number, payload: UpsertPaymentPayload) => {
+    const response = await api.post<ApiPayment>(`/orders/${orderId}/payments`, payload);
+    return response.data;
+  },
+
+  calculateDebts: async (orderId: number, payload: CalculateDebtsPayload) => {
+    const response = await api.post(`/orders/${orderId}/calculate-debts`, payload);
+    return response.data;
+  },
+
+  getMyDebts: async () => {
+    const response = await api.get<ApiMyDebts>('/debts/my', {
+      params: { status: 'active', sortDirection: 'desc' },
+    });
     return response.data;
   },
 

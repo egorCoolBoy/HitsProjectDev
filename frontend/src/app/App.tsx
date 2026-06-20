@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useTelegram } from '../hooks/useTelegram';
 import { useOrders } from '../hooks/useOrders';
 import { useCurrentOrder } from '../hooks/useCurrentOrder';
+import { MY_DEBTS_QUERY_KEY, useMyDebts } from '../hooks/useMyDebts';
 import type { UserProfile } from '../types';
 import { UI_MESSAGES } from '../config/constants';
 
@@ -50,6 +51,7 @@ function AppContent() {
 
   const { orders, isLoading, isError, error, loadOrder, refreshOrder, createOrder, deleteOrder, patchOrder } =
     useOrders(currentUserId);
+  const myDebts = useMyDebts(currentUserId, orders);
 
   const orderScreen = useCurrentOrder({
     orderIdFromUrl,
@@ -57,6 +59,9 @@ function AppContent() {
     loadOrder,
     refreshOrder,
     patchOrder,
+    onDebtsChanged: () => {
+      queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] });
+    },
   });
 
   if (auth.isPending) return <LoadingScreen message={UI_MESSAGES.LOADING} />;
@@ -84,6 +89,7 @@ function AppContent() {
           userProfile={userProfile}
           currentUserId={currentUserId}
           orders={orders}
+          backendDebts={myDebts.data}
           onCreateOrder={async (title) => {
             await createOrder(title);
           }}

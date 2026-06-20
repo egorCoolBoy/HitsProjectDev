@@ -3,8 +3,10 @@ import type {
   ApiOrder,
   ApiOrderExpense,
   ApiOrderParticipant,
+  ApiPayment,
   OrderData,
   OrderItem,
+  Payment,
   Participant,
 } from '../types';
 
@@ -31,6 +33,7 @@ export function mapOrderToData(
   order: ApiOrder,
   currentUserId: number | null,
   expenses: ApiOrderExpense[] = [],
+  payments: ApiPayment[] = [],
 ): OrderData {
   const participants = mapParticipants(order, currentUserId);
   const items = expenses.map((expense) => mapExpenseToItem(expense, currentUserId));
@@ -41,9 +44,16 @@ export function mapOrderToData(
     participants,
     items,
     createdAt: new Date(order.createdAt).getTime(),
-    payments: [],
+    payments: payments.map(mapPaymentToData),
     isClosed: order.isClosed,
     settlements: [],
+  };
+}
+
+export function mapPaymentToData(payment: ApiPayment): Payment {
+  return {
+    participantId: payment.userId.toString(),
+    amount: payment.amount,
   };
 }
 

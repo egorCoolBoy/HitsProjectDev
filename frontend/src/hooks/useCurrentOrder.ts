@@ -13,6 +13,7 @@ type UseCurrentOrderParams = {
   loadOrder: (orderId: string) => Promise<OrderData>;
   refreshOrder: (orderId: string) => Promise<OrderData>;
   patchOrder: (orderId: string, patch: Partial<OrderData>) => void;
+  onDebtsChanged?: () => void;
 };
 
 export function useCurrentOrder({
@@ -21,6 +22,7 @@ export function useCurrentOrder({
   loadOrder,
   refreshOrder,
   patchOrder,
+  onDebtsChanged,
 }: UseCurrentOrderParams) {
   const [currentOrder, setCurrentOrder] = useState<OrderData | null>(null);
   const inviteHandled = useRef(false);
@@ -93,10 +95,11 @@ export function useCurrentOrder({
 
   const handleCloseOrder = useCallback(async () => {
     if (!currentOrder) return;
-    await closeOrder(currentOrder.id);
+    await closeOrder(currentOrder);
     setCurrentOrder((prev) => (prev ? { ...prev, isClosed: true } : null));
     patchOrder(currentOrder.id, { isClosed: true });
-  }, [closeOrder, currentOrder, patchOrder]);
+    onDebtsChanged?.();
+  }, [closeOrder, currentOrder, onDebtsChanged, patchOrder]);
 
   const handleCreateInviteLink = useCallback(async (orderId: string): Promise<string> => {
     const response = await orderService.createInviteLink(parseNumericId(orderId));

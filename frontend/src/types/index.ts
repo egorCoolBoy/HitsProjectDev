@@ -92,6 +92,36 @@ export interface ApiOrderExpense {
   updatedAt: string;
 }
 
+export interface ApiPayment {
+  id: number;
+  orderId: number;
+  userId: number;
+  user: ApiUser;
+  amount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiDebt {
+  id: number;
+  orderId: number;
+  debtorId: number;
+  debtor: ApiUser;
+  creditorId: number;
+  creditor: ApiUser;
+  amount: number;
+  status: 'Active' | 'SettlementRequested' | 'Settled' | number;
+  createdAt: string;
+  settledAt: string | null;
+}
+
+export interface ApiMyDebts {
+  totalOwedByMe: number;
+  totalOwedToMe: number;
+  owedByMe: ApiDebt[];
+  owedToMe: ApiDebt[];
+}
+
 export interface TelegramData {
   token: string;
   user: {

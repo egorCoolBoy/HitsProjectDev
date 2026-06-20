@@ -15,6 +15,10 @@ type HomeProps = {
   userProfile: UserProfile;
   currentUserId: number | null;
   orders: OrderData[];
+  backendDebts?: {
+    myDebts: DebtSummary[];
+    myCredits: DebtSummary[];
+  };
   onCreateOrder: (title: string) => Promise<void>;
   onOpenOrder: (orderId: string) => void;
   onDeleteOrder: (orderId: string) => void;
@@ -24,11 +28,13 @@ export function Home({
   userProfile,
   currentUserId,
   orders,
+  backendDebts,
   onCreateOrder,
   onOpenOrder,
   onDeleteOrder,
 }: HomeProps) {
-  const { myDebts, myCredits } = collectUserDebts(orders, currentUserId);
+  const fallbackDebts = collectUserDebts(orders, currentUserId);
+  const { myDebts, myCredits } = backendDebts ?? fallbackDebts;
   const [activeMainTab, setActiveMainTab] = useState<'orders' | 'debts'>('orders');
   const [activeOrderTab, setActiveOrderTab] = useState<'open' | 'closed'>('open');
   const [activeDebtTab, setActiveDebtTab] = useState<'debtors' | 'creditors'>('debtors');

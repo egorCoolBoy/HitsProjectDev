@@ -25,11 +25,12 @@ export function useOrders(currentUserId: number | null) {
   const loadOrder = useCallback(
     async (orderId: string): Promise<OrderData> => {
       const numericOrderId = parseNumericId(orderId);
-      const [apiOrder, expenses] = await Promise.all([
+      const [apiOrder, expenses, payments] = await Promise.all([
         orderService.getById(numericOrderId),
         orderService.listExpenses(numericOrderId),
+        orderService.listPayments(numericOrderId),
       ]);
-      return mapOrderToData(apiOrder, currentUserId, expenses);
+      return mapOrderToData(apiOrder, currentUserId, expenses, payments);
     },
     [currentUserId],
   );
