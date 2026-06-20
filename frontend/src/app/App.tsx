@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Home } from '../components/Home';
 import { Order } from '../components/Order';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -8,6 +8,7 @@ import { useTelegram } from '../hooks/useTelegram';
 import { useOrders } from '../hooks/useOrders';
 import { useCurrentOrder } from '../hooks/useCurrentOrder';
 import { MY_DEBTS_QUERY_KEY, useMyDebts } from '../hooks/useMyDebts';
+import { useDebtRealtime } from '../hooks/useDebtRealtime';
 import orderService from '../services/orderService';
 import type { UserProfile } from '../types';
 import { UI_MESSAGES } from '../config/constants';
@@ -66,6 +67,9 @@ function AppContent() {
   const { orders, isLoading, isError, error, loadOrder, refreshOrder, createOrder, deleteOrder, patchOrder } =
     useOrders(currentUserId, currentOrderRole);
   const myDebts = useMyDebts(currentUserId, orders);
+  const refreshMyDebts = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] });
+  }, [currentUserId]);
   const settlementDebtId = debtIdFromUrl?.toString() ?? null;
   const confirmDebt =
     settlementDebtId && dismissedSettlementDebtId !== settlementDebtId
@@ -80,9 +84,12 @@ function AppContent() {
     loadOrder,
     refreshOrder,
     patchOrder,
-    onDebtsChanged: () => {
-      queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] });
-    },
+    onDebtsChanged: refreshMyDebts,
+  });
+
+  useDebtRealtime({
+    enabled: !!currentUserId,
+    onDebtsChanged: refreshMyDebts,
   });
 
   if (auth.isPending) return <LoadingScreen message={UI_MESSAGES.LOADING} />;

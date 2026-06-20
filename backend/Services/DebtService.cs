@@ -9,11 +9,16 @@ public sealed class DebtService : IDebtService
 {
     private readonly AppDbContext _dbContext;
     private readonly IDebtCalculationService _debtCalculationService;
+    private readonly IOrderRealtimeNotifier _realtimeNotifier;
 
-    public DebtService(AppDbContext dbContext, IDebtCalculationService debtCalculationService)
+    public DebtService(
+        AppDbContext dbContext,
+        IDebtCalculationService debtCalculationService,
+        IOrderRealtimeNotifier realtimeNotifier)
     {
         _dbContext = dbContext;
         _debtCalculationService = debtCalculationService;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<CalculateOrderDebtsResponse> CalculateDebtsAsync(long userId, long orderId, CalculateOrderDebtsRequest request)
@@ -38,7 +43,7 @@ public sealed class DebtService : IDebtService
             await UpsertPaymentsAsync(orderId, request.Payments);
         }
 
-        return await PersistOrderDebtsCoreAsync(order);
+        return await PersistOrderDebtsCoreAsync(order, userId);
     }
 
     private async Task<CalculateOrderDebtsResponse> LoadCalculationResponseAsync(Order order)
@@ -84,14 +89,15 @@ public sealed class DebtService : IDebtService
     public async Task<CalculateOrderDebtsResponse> PersistOrderDebtsAsync(long userId, long orderId)
     {
         var order = await GetOrderWithAccessAsync(userId, orderId);
-        return await PersistOrderDebtsCoreAsync(order);
+        return await PersistOrderDebtsCoreAsync(order, userId);
     }
 
-    private async Task<CalculateOrderDebtsResponse> PersistOrderDebtsCoreAsync(Order order)
+    private async Task<CalculateOrderDebtsResponse> PersistOrderDebtsCoreAsync(Order order, long actorUserId)
     {
         var orderId = order.Id;
         var participantIds = order.OrderUsers.Select(item => item.UserId).ToList();
         var participantUsers = order.OrderUsers.ToDictionary(item => item.UserId, item => item.User);
+        var affectedUserIds = new HashSet<long>();
 
         var payments = await _dbContext.Payments
             .Where(item => item.OrderId == orderId)
@@ -119,7 +125,8 @@ public sealed class DebtService : IDebtService
         var nettedDebts = _debtCalculationService.CollapseDebts(calculatedDebts);
 
         var now = DateTimeOffset.UtcNow;
-        await SettleActiveDebtsAsync(orderId, now);
+        var settledDebts = await SettleActiveDebtsAsync(orderId, now);
+        AddAffectedDebtUsers(affectedUserIds, settledDebts);
 
         var createdDebts = nettedDebts
             .Select(transfer => new Debt
@@ -133,12 +140,15 @@ public sealed class DebtService : IDebtService
             })
             .ToList();
 
+        AddAffectedDebtUsers(affectedUserIds, createdDebts);
+
         if (createdDebts.Count > 0)
         {
             _dbContext.Debts.AddRange(createdDebts);
         }
 
         await _dbContext.SaveChangesAsync();
+        await _realtimeNotifier.DebtsChangedAsync(orderId, actorUserId, affectedUserIds);
 
         var persistedDebts = await LoadDebtsAsync(orderId);
 
@@ -254,6 +264,7 @@ public sealed class DebtService : IDebtService
 
         debt.Status = DebtStatus.SettlementRequested;
         await _dbContext.SaveChangesAsync();
+        await NotifyDebtUsersChangedAsync(debt, userId);
 
         return DebtResponse.From(debt);
     }
@@ -280,6 +291,7 @@ public sealed class DebtService : IDebtService
         debt.Status = DebtStatus.Settled;
         debt.SettledAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync();
+        await NotifyDebtUsersChangedAsync(debt, userId);
 
         return DebtResponse.From(debt);
     }
@@ -306,6 +318,7 @@ public sealed class DebtService : IDebtService
         debt.Status = DebtStatus.Active;
         debt.SettledAt = null;
         await _dbContext.SaveChangesAsync();
+        await NotifyDebtUsersChangedAsync(debt, userId);
 
         return DebtResponse.From(debt);
     }
@@ -345,7 +358,7 @@ public sealed class DebtService : IDebtService
         await _dbContext.SaveChangesAsync();
     }
 
-    private async Task SettleActiveDebtsAsync(long orderId, DateTimeOffset settledAt)
+    private async Task<List<Debt>> SettleActiveDebtsAsync(long orderId, DateTimeOffset settledAt)
     {
         var activeDebts = await _dbContext.Debts
             .Where(item => item.OrderId == orderId && item.Status != DebtStatus.Settled)
@@ -355,6 +368,25 @@ public sealed class DebtService : IDebtService
         {
             debt.Status = DebtStatus.Settled;
             debt.SettledAt = settledAt;
+        }
+
+        return activeDebts;
+    }
+
+    private Task NotifyDebtUsersChangedAsync(Debt debt, long actorUserId)
+    {
+        return _realtimeNotifier.DebtsChangedAsync(
+            debt.OrderId,
+            actorUserId,
+            new[] { debt.DebtorId, debt.CreditorId });
+    }
+
+    private static void AddAffectedDebtUsers(ISet<long> userIds, IEnumerable<Debt> debts)
+    {
+        foreach (var debt in debts)
+        {
+            userIds.Add(debt.DebtorId);
+            userIds.Add(debt.CreditorId);
         }
     }
 

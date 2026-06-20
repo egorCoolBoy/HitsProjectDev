@@ -68,6 +68,32 @@ public sealed class OrderRealtimeNotifier : IOrderRealtimeNotifier
         });
     }
 
+    public Task DebtsChangedAsync(long orderId, long actorUserId, IEnumerable<long> userIds)
+    {
+        var groups = userIds
+            .Distinct()
+            .Select(OrderRealtimeGroups.User)
+            .ToList();
+
+        if (groups.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        return _hubContext.Clients
+            .Groups(groups)
+            .SendAsync("debtsChanged", new OrderRealtimeEvent<DebtsChangedPayload>
+            {
+                OrderId = orderId,
+                ActorUserId = actorUserId,
+                OccurredAt = DateTimeOffset.UtcNow,
+                Payload = new DebtsChangedPayload
+                {
+                    OrderId = orderId
+                }
+            });
+    }
+
     private Task SendAsync<TPayload>(long orderId, string eventName, long actorUserId, TPayload payload)
     {
         return _hubContext.Clients

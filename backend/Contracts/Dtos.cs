@@ -333,6 +333,11 @@ public sealed class PaymentDeletedPayload
     public long UserId { get; set; }
 }
 
+public sealed class DebtsChangedPayload
+{
+    public long OrderId { get; set; }
+}
+
 public sealed class CalculateOrderDebtsRequest
 {
     public IReadOnlyList<ParticipantPaymentRequest> Payments { get; set; } = Array.Empty<ParticipantPaymentRequest>();

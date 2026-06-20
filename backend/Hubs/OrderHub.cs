@@ -17,6 +17,15 @@ public sealed class OrderHub : Hub
         _dbContext = dbContext;
     }
 
+    public override async Task OnConnectedAsync()
+    {
+        var userId = Context.User?.GetUserId()
+            ?? throw new HubException("Authenticated user id is missing.");
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, OrderRealtimeGroups.User(userId));
+        await base.OnConnectedAsync();
+    }
+
     public async Task JoinOrder(long orderId)
     {
         var userId = Context.User?.GetUserId()
@@ -44,5 +53,10 @@ public static class OrderRealtimeGroups
     public static string Order(long orderId)
     {
         return $"order:{orderId}";
+    }
+
+    public static string User(long userId)
+    {
+        return $"user:{userId}";
     }
 }
