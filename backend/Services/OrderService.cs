@@ -231,6 +231,7 @@ public sealed class OrderService : IOrderService
             throw new InvalidOperationException("Order can only be closed.");
         }
 
+        await EnsureOrderTotalMatchesPaymentsAsync(orderId);
         await _debtService.PersistOrderDebtsAsync(userId, orderId);
 
         order.IsClosed = true;
@@ -329,6 +330,24 @@ public sealed class OrderService : IOrderService
             .Include(order => order.OrderUsers)
             .ThenInclude(membership => membership.User)
             .FirstOrDefaultAsync(item => item.Id == orderId);
+    }
+
+    private async Task EnsureOrderTotalMatchesPaymentsAsync(long orderId)
+    {
+        var orderTotal = await _dbContext.OrderExpenses
+            .Where(item => item.OrderId == orderId)
+            .Select(item => (decimal?)(item.Price * item.Quantity))
+            .SumAsync() ?? 0;
+
+        var paymentTotal = await _dbContext.Payments
+            .Where(item => item.OrderId == orderId)
+            .Select(item => (decimal?)item.Amount)
+            .SumAsync() ?? 0;
+
+        if (orderTotal != paymentTotal)
+        {
+            throw new OrderPaymentTotalMismatchException(orderId, orderTotal, paymentTotal);
+        }
     }
 
     private static string? Normalize(string? value)

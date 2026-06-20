@@ -40,6 +40,23 @@ public sealed class OrderParticipantNotFoundException : Exception
     }
 }
 
+public sealed class OrderPaymentTotalMismatchException : Exception
+{
+    public OrderPaymentTotalMismatchException(long orderId, decimal orderTotal, decimal paymentTotal)
+        : base($"Order {orderId} cannot be closed because order total {orderTotal:0.00} does not match payments total {paymentTotal:0.00}.")
+    {
+        OrderId = orderId;
+        OrderTotal = orderTotal;
+        PaymentTotal = paymentTotal;
+    }
+
+    public long OrderId { get; }
+
+    public decimal OrderTotal { get; }
+
+    public decimal PaymentTotal { get; }
+}
+
 public sealed class DebtNotFoundException : Exception
 {
     public DebtNotFoundException(long debtId)

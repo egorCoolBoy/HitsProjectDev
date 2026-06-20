@@ -159,6 +159,15 @@ public sealed class OrdersController : ControllerBase
         {
             return Forbid();
         }
+        catch (OrderPaymentTotalMismatchException exception)
+        {
+            return BadRequest(new
+            {
+                message = exception.Message,
+                orderTotal = exception.OrderTotal,
+                paymentTotal = exception.PaymentTotal
+            });
+        }
         catch (InvalidOperationException exception)
         {
             return Problem(exception.Message);
