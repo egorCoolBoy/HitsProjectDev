@@ -3,6 +3,7 @@ import orderService from '../services/orderService';
 import { parseNumericId } from '../utils/apiMappers';
 import { mergeClientOrderState, shouldSkipApiSync } from '../utils/orderState';
 import { useOrderMutations } from './useOrderMutations';
+import { useOrderRealtime } from './useOrderRealtime';
 import type { ExpenseInput } from './useOrderMutations';
 import type { OrderData } from '../types';
 import { UI_MESSAGES } from '../config/constants';
@@ -30,6 +31,26 @@ export function useCurrentOrder({
   const { addExpense, updateExpense, deleteExpense, closeOrder, syncOrderChanges } = useOrderMutations(
     refreshOrder,
   );
+  const currentOrderId = currentOrder?.id ?? null;
+
+  const handleRealtimeOrderChanged = useCallback(() => {
+    if (!currentOrderId) return;
+
+    refreshOrder(currentOrderId)
+      .then((order) => {
+        setCurrentOrder((latest) => (latest?.id === order.id ? order : latest));
+        onDebtsChanged?.();
+      })
+      .catch((error) => {
+        console.warn('Failed to refresh order after realtime event', error);
+      });
+  }, [currentOrderId, onDebtsChanged, refreshOrder]);
+
+  useOrderRealtime({
+    orderId: currentOrderId,
+    enabled: !!currentOrder && !currentOrder.isClosed,
+    onOrderChanged: handleRealtimeOrderChanged,
+  });
 
   useEffect(() => {
     if (!orderIdFromUrl || inviteHandled.current || !ordersLoaded) return;
