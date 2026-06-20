@@ -100,6 +100,11 @@ const orderService = {
     return response.data;
   },
 
+  rejectDebtSettlement: async (debtId: number) => {
+    const response = await api.post(`/debts/${debtId}/settlement-reject`);
+    return response.data;
+  },
+
   listExpenses: async (orderId: number) => {
     const response = await api.get<ApiOrderExpense[]>(`/orders/${orderId}/expenses`);
     return response.data;

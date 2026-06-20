@@ -1,17 +1,16 @@
 import { useState } from 'react';
-import { DollarSign, Users, CreditCard, Lock } from 'lucide-react';
+import { CreditCard, DollarSign, Lock, Users } from 'lucide-react';
 import {
-  calculateParticipantTotals,
-  calculateDebts,
   calculateOrderTotal,
+  calculateParticipantTotals,
   hasInvalidItemPortions,
 } from '../utils/orderCalculations';
 import { UI_MESSAGES, VALIDATION } from '../config/constants';
 import { FixedBottomBar } from './ui/FixedBottomBar';
-import { MoneyAmount } from './ui/MoneyAmount';
 import { Modal } from './ui/Modal';
+import { MoneyAmount } from './ui/MoneyAmount';
 import { ParticipantAvatar } from './ui/ParticipantAvatar';
-import type { DebtRelation, OrderData, ParticipantTotal } from '../types';
+import type { OrderData, ParticipantTotal } from '../types';
 
 type SummaryProps = {
   order: OrderData;
@@ -25,37 +24,28 @@ export function Summary({ order, canCloseOrder, onUpdateOrder, onCloseOrder }: S
   const [isClosing, setIsClosing] = useState(false);
 
   const totals = calculateParticipantTotals(order);
-  const debts = calculateDebts(order);
   const grandTotal = calculateOrderTotal(order.items);
-  const totalPaid = order.payments.reduce((sum, p) => sum + p.amount, 0);
-
-  const openCloseDialog = () => {
-    setCloseDialogOpen(true);
-  };
+  const totalPaid = order.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const canShowCloseButton =
+    canCloseOrder &&
+    !order.isClosed &&
+    totals.some((total) => Math.abs(total.balance) > VALIDATION.PORTION_EPSILON);
 
   const handlePaymentChange = (participantId: string, value: string) => {
     const amount = parseFloat(value) || 0;
-    const existingPayments = order.payments.filter((p) => p.participantId !== participantId);
+    const existingPayments = order.payments.filter((payment) => payment.participantId !== participantId);
+
     onUpdateOrder({
       ...order,
       payments: [...existingPayments, { participantId, amount }],
     });
   };
 
-  const handleSettleDebt = (debtorId: string, creditorId: string) => {
-    const settlementId = `${debtorId}-${creditorId}`;
-    const existingSettlements = order.settlements.filter((s) => s.debtorId !== settlementId);
-    onUpdateOrder({
-      ...order,
-      settlements: [...existingSettlements, { debtorId: settlementId, settled: true }],
-    });
-  };
-
   if (order.items.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
-        <p className="mb-2">Нет позиций для расчёта</p>
-        <p className="text-sm">Добавьте позиции на вкладке &quot;Позиции&quot;</p>
+        <p className="mb-2">Нет позиций для расчета</p>
+        <p className="text-sm">Добавьте позиции на вкладке "Позиции"</p>
       </div>
     );
   }
@@ -67,7 +57,7 @@ export function Summary({ order, canCloseOrder, onUpdateOrder, onCloseOrder }: S
       {hasInvalidItemPortions(order) && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-sm font-medium text-red-800">
-            ⚠️ У некоторых позиций сумма частей не равна 1. Исправьте на вкладке &quot;Позиции&quot;.
+            У некоторых позиций сумма частей не равна 1. Исправьте это на вкладке "Позиции".
           </p>
         </div>
       )}
@@ -88,29 +78,16 @@ export function Summary({ order, canCloseOrder, onUpdateOrder, onCloseOrder }: S
         ))}
       </section>
 
-      {canCloseOrder && !order.isClosed && totals.some((t) => Math.abs(t.balance) > VALIDATION.PORTION_EPSILON) && (
+      {canShowCloseButton && (
         <FixedBottomBar>
           <button
-            onClick={openCloseDialog}
+            onClick={() => setCloseDialogOpen(true)}
             className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 font-semibold flex items-center justify-center gap-2 hover:bg-[#0077bb] transition-colors"
           >
             <Lock className="size-5" />
-            Закрыть счёт
+            Закрыть счет
           </button>
         </FixedBottomBar>
-      )}
-
-      {order.isClosed && debts.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="font-semibold text-gray-800">Кто кому должен</h2>
-          {debts.map((debt) => (
-            <SettlementDebtCard
-              key={`${debt.fromId}-${debt.toId}`}
-              debt={debt}
-              onSettle={() => handleSettleDebt(debt.fromId, debt.toId)}
-            />
-          ))}
-        </section>
       )}
 
       <CloseOrderConfirmationDialog
@@ -244,7 +221,7 @@ function ParticipantBalanceCard({
               min="0"
               step="0.01"
               value={participant.paid}
-              onChange={(e) => onPaymentChange(participant.id, e.target.value)}
+              onChange={(event) => onPaymentChange(participant.id, event.target.value)}
               disabled={isClosed}
               className="w-24 px-2 py-1 text-sm text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0088cc] focus:border-transparent disabled:bg-gray-100"
               placeholder="0"
@@ -264,7 +241,7 @@ function ParticipantBalanceCard({
                 ? 'Переплатил:'
                 : participant.balance < -VALIDATION.PORTION_EPSILON
                   ? 'Недоплатил:'
-                  : 'Расчёт сошёлся'}
+                  : 'Расчет сошелся'}
             </span>
             {hasBalance && (
               <MoneyAmount
@@ -274,39 +251,6 @@ function ParticipantBalanceCard({
             )}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function SettlementDebtCard({ debt, onSettle }: { debt: DebtRelation; onSettle: () => void }) {
-  return (
-    <div
-      className={`bg-white rounded-xl shadow-sm border overflow-hidden ${
-        debt.settled ? 'border-green-200 bg-green-50' : 'border-gray-100'
-      }`}
-    >
-      <div className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1">
-            <ParticipantAvatar name={debt.fromName} color={debt.fromColor} size="sm" />
-            <span className="text-sm font-medium text-gray-800">{debt.fromName}</span>
-            <span className="text-gray-400">→</span>
-            <ParticipantAvatar name={debt.toName} color={debt.toColor} size="sm" />
-            <span className="text-sm font-medium text-gray-800">{debt.toName}</span>
-          </div>
-          <MoneyAmount value={debt.amount} className="text-lg font-bold text-[#0088cc] ml-3" />
-        </div>
-        {!debt.settled ? (
-          <button
-            onClick={onSettle}
-            className="w-full mt-3 bg-green-500 text-white rounded-lg py-2 text-sm font-medium hover:bg-green-600 transition-colors"
-          >
-            Погасить долг
-          </button>
-        ) : (
-          <div className="mt-3 text-center text-sm font-medium text-green-600">✓ Долг погашен</div>
-        )}
       </div>
     </div>
   );

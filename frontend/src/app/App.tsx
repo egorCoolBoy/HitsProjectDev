@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Home } from '../components/Home';
 import { Order } from '../components/Order';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useAuth } from '../hooks/useAuth';
 import { useTelegram } from '../hooks/useTelegram';
 import { useOrders } from '../hooks/useOrders';
@@ -32,6 +33,8 @@ function ErrorScreen({ message }: { message: string }) {
 
 function AppContent() {
   const { initData, user } = useTelegram();
+  const [dismissedSettlementDebtId, setDismissedSettlementDebtId] = useState<string | null>(null);
+  const [settlementActionDebtId, setSettlementActionDebtId] = useState<string | null>(null);
   const orderIdFromUrl = useMemo(() => {
     const value = new URLSearchParams(window.location.search).get('orderId');
     if (!value) return null;
@@ -63,6 +66,13 @@ function AppContent() {
   const { orders, isLoading, isError, error, loadOrder, refreshOrder, createOrder, deleteOrder, patchOrder } =
     useOrders(currentUserId, currentOrderRole);
   const myDebts = useMyDebts(currentUserId, orders);
+  const settlementDebtId = debtIdFromUrl?.toString() ?? null;
+  const confirmDebt =
+    settlementDebtId && dismissedSettlementDebtId !== settlementDebtId
+      ? myDebts.data?.myCredits.find(
+          (debt) => debt.debtId === settlementDebtId && debt.status === 'settlementRequested',
+        )
+      : undefined;
 
   const orderScreen = useCurrentOrder({
     orderIdFromUrl,
@@ -101,7 +111,6 @@ function AppContent() {
           currentUserId={currentUserId}
           orders={orders}
           backendDebts={myDebts.data}
-          settlementDebtId={debtIdFromUrl?.toString() ?? null}
           onCreateOrder={async (title) => {
             await createOrder(title);
           }}
@@ -112,10 +121,6 @@ function AppContent() {
           }}
           onRequestDebtSettlement={async (debtId) => {
             await orderService.requestDebtSettlement(parseInt(debtId, 10));
-            await queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] });
-          }}
-          onConfirmDebtSettlement={async (debtId) => {
-            await orderService.confirmDebtSettlement(parseInt(debtId, 10));
             await queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] });
           }}
         />
@@ -131,6 +136,45 @@ function AppContent() {
           onCloseOrder={orderScreen.closeOrder}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDebt !== undefined}
+        title="Подтвердить погашение"
+        message={
+          confirmDebt
+            ? `${confirmDebt.debtorName} просит подтвердить погашение долга ${confirmDebt.amount.toFixed(2)} ₽ по заказу "${confirmDebt.orderName}".`
+            : ''
+        }
+        confirmLabel={settlementActionDebtId === confirmDebt?.debtId ? 'Подтверждаем...' : 'Подтвердить'}
+        cancelLabel={settlementActionDebtId === confirmDebt?.debtId ? 'Отклоняем...' : 'Позже'}
+        onConfirm={() => {
+          if (!confirmDebt?.debtId) return;
+
+          setSettlementActionDebtId(confirmDebt.debtId);
+          orderService
+            .confirmDebtSettlement(parseInt(confirmDebt.debtId, 10))
+            .then(() => queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] }))
+            .finally(() => {
+              setSettlementActionDebtId(null);
+              setDismissedSettlementDebtId(confirmDebt.debtId ?? null);
+            });
+        }}
+        onCancel={() => {
+          if (!confirmDebt?.debtId) {
+            setDismissedSettlementDebtId(settlementDebtId);
+            return;
+          }
+
+          setSettlementActionDebtId(confirmDebt.debtId);
+          orderService
+            .rejectDebtSettlement(parseInt(confirmDebt.debtId, 10))
+            .then(() => queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] }))
+            .finally(() => {
+              setSettlementActionDebtId(null);
+              setDismissedSettlementDebtId(confirmDebt.debtId ?? settlementDebtId);
+            });
+        }}
+      />
     </div>
   );
 }

@@ -19,12 +19,10 @@ type HomeProps = {
     myDebts: DebtSummary[];
     myCredits: DebtSummary[];
   };
-  settlementDebtId?: string | null;
   onCreateOrder: (title: string) => Promise<void>;
   onOpenOrder: (orderId: string) => void;
   onDeleteOrder: (orderId: string) => void;
   onRequestDebtSettlement: (debtId: string) => Promise<void>;
-  onConfirmDebtSettlement: (debtId: string) => Promise<void>;
 };
 
 export function Home({
@@ -32,12 +30,10 @@ export function Home({
   currentUserId,
   orders,
   backendDebts,
-  settlementDebtId,
   onCreateOrder,
   onOpenOrder,
   onDeleteOrder,
   onRequestDebtSettlement,
-  onConfirmDebtSettlement,
 }: HomeProps) {
   const fallbackDebts = collectUserDebts(orders, currentUserId);
   const { myDebts, myCredits } = backendDebts ?? fallbackDebts;
@@ -47,17 +43,11 @@ export function Home({
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
-  const [dismissedSettlementDebtId, setDismissedSettlementDebtId] = useState<string | null>(null);
-  const [settlementActionDebtId, setSettlementActionDebtId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const openOrders = orders.filter((order) => !order.isClosed);
   const closedOrders = orders.filter((order) => order.isClosed);
   const visibleOrders = activeOrderTab === 'open' ? openOrders : closedOrders;
   const visibleDebts = activeDebtTab === 'debtors' ? myCredits : myDebts;
-  const confirmDebt =
-    settlementDebtId && dismissedSettlementDebtId !== settlementDebtId
-      ? myCredits.find((debt) => debt.debtId === settlementDebtId && debt.status === 'settlementRequested')
-      : undefined;
 
   const handleCreateSubmit = async (values: Record<string, string>) => {
     const title = values.title?.trim();
@@ -235,29 +225,6 @@ export function Home({
         onCancel={() => setDeleteOrderId(null)}
       />
 
-      <ConfirmDialog
-        open={confirmDebt !== undefined}
-        title="Подтвердить погашение"
-        message={
-          confirmDebt
-            ? `${confirmDebt.debtorName} просит подтвердить погашение долга ${confirmDebt.amount.toFixed(2)} ₽ по заказу "${confirmDebt.orderName}".`
-            : ''
-        }
-        confirmLabel={settlementActionDebtId === confirmDebt?.debtId ? 'Подтверждаем...' : 'Подтвердить'}
-        cancelLabel="Позже"
-        onConfirm={() => {
-          if (!confirmDebt?.debtId) return;
-
-          setSettlementActionDebtId(confirmDebt.debtId);
-          onConfirmDebtSettlement(confirmDebt.debtId).finally(() => {
-            setSettlementActionDebtId(null);
-            setDismissedSettlementDebtId(confirmDebt.debtId ?? null);
-          });
-        }}
-        onCancel={() => {
-          setDismissedSettlementDebtId(confirmDebt?.debtId ?? settlementDebtId ?? null);
-        }}
-      />
     </div>
   );
 }
