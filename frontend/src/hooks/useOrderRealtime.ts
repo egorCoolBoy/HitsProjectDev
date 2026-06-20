@@ -29,7 +29,7 @@ export function useOrderRealtime({ orderId, enabled, onOrderChanged }: UseOrderR
 
     let disposed = false;
     const connection = new HubConnectionBuilder()
-      .withUrl('/api/hubs/orders', {
+      .withUrl('/hubs/orders', {
         accessTokenFactory: () => localStorage.getItem('access_token') ?? '',
       })
       .withAutomaticReconnect()
