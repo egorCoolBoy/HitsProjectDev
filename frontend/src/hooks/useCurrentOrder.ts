@@ -28,9 +28,8 @@ export function useCurrentOrder({
   const [currentOrder, setCurrentOrder] = useState<OrderData | null>(null);
   const inviteHandled = useRef(false);
 
-  const { addExpense, updateExpense, deleteExpense, closeOrder, syncOrderChanges } = useOrderMutations(
-    refreshOrder,
-  );
+  const { addExpense, updateExpense, deleteExpense, updatePayment, closeOrder, syncOrderChanges } =
+    useOrderMutations(refreshOrder);
   const currentOrderId = currentOrder?.id ?? null;
 
   const handleRealtimeOrderChanged = useCallback(() => {
@@ -114,6 +113,15 @@ export function useCurrentOrder({
     [applyServerOrder, currentOrder, deleteExpense],
   );
 
+  const handleUpdatePayment = useCallback(
+    async (participantId: string, amount: number) => {
+      if (!currentOrder) return;
+      const refreshed = await updatePayment(currentOrder.id, participantId, amount);
+      applyServerOrder(refreshed);
+    },
+    [applyServerOrder, currentOrder, updatePayment],
+  );
+
   const handleCloseOrder = useCallback(async () => {
     if (!currentOrder) return;
     await closeOrder(currentOrder);
@@ -142,6 +150,7 @@ export function useCurrentOrder({
     addExpense: handleAddExpense,
     updateExpense: handleUpdateExpense,
     deleteExpense: handleDeleteExpense,
+    updatePayment: handleUpdatePayment,
     closeOrder: handleCloseOrder,
     createInviteLink: handleCreateInviteLink,
   };

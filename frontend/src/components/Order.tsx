@@ -15,15 +15,17 @@ import { OrderProvider } from '../contexts/OrderContext';
 import type { OrderData } from '../types';
 import type { ExpenseInput } from '../hooks/useOrderMutations';
 
-export type OrderActions = {
-  onUpdateOrder: (order: OrderData) => void;
-  onBack: () => void;
-  onCreateInviteLink: (orderId: string) => Promise<string>;
-  onAddExpense: (payload: ExpenseInput) => Promise<void>;
-  onUpdateExpense: (expenseId: string, payload: ExpenseInput) => Promise<void>;
-  onDeleteExpense: (expenseId: string) => Promise<void>;
-  onCloseOrder: () => Promise<void>;
-};
+export type OrderActions = {
+  currentUserId: number | null;
+  onUpdateOrder: (order: OrderData) => void;
+  onBack: () => void;
+  onCreateInviteLink: (orderId: string) => Promise<string>;
+  onAddExpense: (payload: ExpenseInput) => Promise<void>;
+  onUpdateExpense: (expenseId: string, payload: ExpenseInput) => Promise<void>;
+  onDeleteExpense: (expenseId: string) => Promise<void>;
+  onUpdatePayment: (participantId: string, amount: number) => Promise<void>;
+  onCloseOrder: () => Promise<void>;
+};
 
 type OrderProps = {
   order: OrderData;
@@ -37,16 +39,18 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
   { id: 'summary', label: 'Расчёт', icon: <Calculator className="size-4" /> },
 ];
 
-export function Order({
-  order,
-  onUpdateOrder,
-  onBack,
-  onCreateInviteLink,
-  onAddExpense,
-  onUpdateExpense,
-  onDeleteExpense,
-  onCloseOrder,
-}: OrderProps) {
+export function Order({
+  order,
+  currentUserId,
+  onUpdateOrder,
+  onBack,
+  onCreateInviteLink,
+  onAddExpense,
+  onUpdateExpense,
+  onDeleteExpense,
+  onUpdatePayment,
+  onCloseOrder,
+}: OrderProps) {
   const [activeTab, setActiveTab] = useState<Tab>('items');
   const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [editItemId, setEditItemId] = useState<string | null>(null);
@@ -154,8 +158,10 @@ export function Order({
             {activeTab === 'summary' && (
               <Summary
                 order={order}
+                currentUserId={currentUserId}
                 canCloseOrder={order.currentUserRole === 'creator'}
                 onUpdateOrder={onUpdateOrder}
+                onUpdatePayment={onUpdatePayment}
                 onCloseOrder={onCloseOrder}
               />
             )}

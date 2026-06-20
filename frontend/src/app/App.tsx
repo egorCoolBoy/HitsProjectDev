@@ -127,12 +127,14 @@ function AppContent() {
       ) : (
         <Order
           order={orderScreen.currentOrder!}
+          currentUserId={currentUserId}
           onUpdateOrder={orderScreen.updateOrder}
           onBack={orderScreen.closeOrderView}
           onCreateInviteLink={orderScreen.createInviteLink}
           onAddExpense={orderScreen.addExpense}
           onUpdateExpense={orderScreen.updateExpense}
           onDeleteExpense={orderScreen.deleteExpense}
+          onUpdatePayment={orderScreen.updatePayment}
           onCloseOrder={orderScreen.closeOrder}
         />
       )}

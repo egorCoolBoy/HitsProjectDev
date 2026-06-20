@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CreditCard, DollarSign, Lock, Users } from 'lucide-react';
 import {
   calculateOrderTotal,
@@ -14,14 +14,24 @@ import type { OrderData, ParticipantTotal } from '../types';
 
 type SummaryProps = {
   order: OrderData;
+  currentUserId: number | null;
   canCloseOrder: boolean;
   onUpdateOrder: (order: OrderData) => void;
+  onUpdatePayment: (participantId: string, amount: number) => Promise<void>;
   onCloseOrder: () => Promise<void>;
 };
 
-export function Summary({ order, canCloseOrder, onUpdateOrder, onCloseOrder }: SummaryProps) {
+export function Summary({
+  order,
+  currentUserId,
+  canCloseOrder,
+  onUpdateOrder,
+  onUpdatePayment,
+  onCloseOrder,
+}: SummaryProps) {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const paymentSyncTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const totals = calculateParticipantTotals(order);
   const grandTotal = calculateOrderTotal(order.items);
@@ -39,7 +49,24 @@ export function Summary({ order, canCloseOrder, onUpdateOrder, onCloseOrder }: S
       ...order,
       payments: [...existingPayments, { participantId, amount }],
     });
+
+    if (participantId !== currentUserId?.toString()) return;
+
+    clearTimeout(paymentSyncTimers.current[participantId]);
+    paymentSyncTimers.current[participantId] = setTimeout(() => {
+      onUpdatePayment(participantId, amount).catch((error) => {
+        console.warn('Failed to sync payment', error);
+      });
+    }, 400);
   };
+
+  useEffect(() => {
+    const timers = paymentSyncTimers.current;
+
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
 
   if (order.items.length === 0) {
     return (
@@ -73,6 +100,7 @@ export function Summary({ order, canCloseOrder, onUpdateOrder, onCloseOrder }: S
             key={participant.id}
             participant={participant}
             isClosed={order.isClosed}
+            canEditPayment={participant.id === currentUserId?.toString()}
             onPaymentChange={handlePaymentChange}
           />
         ))}
@@ -176,10 +204,12 @@ function TotalCard({ grandTotal, totalPaid }: { grandTotal: number; totalPaid: n
 function ParticipantBalanceCard({
   participant,
   isClosed,
+  canEditPayment,
   onPaymentChange,
 }: {
   participant: ParticipantTotal;
   isClosed: boolean;
+  canEditPayment: boolean;
   onPaymentChange: (participantId: string, value: string) => void;
 }) {
   const balanceAbs = Math.abs(participant.balance);
@@ -222,7 +252,7 @@ function ParticipantBalanceCard({
               step="0.01"
               value={participant.paid}
               onChange={(event) => onPaymentChange(participant.id, event.target.value)}
-              disabled={isClosed}
+              disabled={isClosed || !canEditPayment}
               className="w-24 px-2 py-1 text-sm text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0088cc] focus:border-transparent disabled:bg-gray-100"
               placeholder="0"
             />
