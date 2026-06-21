@@ -86,6 +86,7 @@ function AppContent() {
   const showClosedInviteWarning =
     closedInviteWarningVisible &&
     orderIdFromUrl !== null &&
+    debtIdFromUrl === null &&
     !!auth.data &&
     !auth.data.order;
 
