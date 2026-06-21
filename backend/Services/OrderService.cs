@@ -113,6 +113,11 @@ public sealed class OrderService : IOrderService
 
         await EnsureAccessAsync(userId, orderId);
 
+        if (order.IsClosed)
+        {
+            throw new InvalidOperationException("Order is closed and cannot be modified.");
+        }
+
         if (string.IsNullOrWhiteSpace(_telegramOptions.BotUsername))
         {
             throw new InvalidOperationException("Telegram:BotUsername is required.");

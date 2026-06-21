@@ -8,7 +8,10 @@ export function formatCurrency(amount: number): string {
 export function formatRelativeDate(timestamp: number): string {
   const date = new Date(timestamp);
   const now = new Date();
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.max(
+    0,
+    Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)),
+  );
 
   if (diffDays === 0) return 'Сегодня';
   if (diffDays === 1) return 'Вчера';

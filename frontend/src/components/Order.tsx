@@ -177,12 +177,19 @@ export function Order({
 
         <main className="flex-1 overflow-auto pb-20">
           <div className="max-w-md mx-auto p-4">
+            {order.isClosed && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-5 text-center text-2xl font-bold text-red-700 shadow-sm">
+                Заказ закрыт
+              </div>
+            )}
+
             {activeTab === 'items' && <ItemList />}
 
             {activeTab === 'participants' && (
               <ParticipantList
                 orderId={order.id}
                 participants={order.participants}
+                isClosed={order.isClosed}
                 onCreateInviteLink={onCreateInviteLink}
               />
             )}

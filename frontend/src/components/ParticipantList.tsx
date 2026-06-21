@@ -8,12 +8,14 @@ import type { Participant } from '../types';
 type ParticipantListProps = {
   orderId: string;
   participants: Participant[];
+  isClosed?: boolean;
   onCreateInviteLink: (orderId: string) => Promise<string>;
 };
 
 export function ParticipantList({
   orderId,
   participants,
+  isClosed = false,
   onCreateInviteLink,
 }: ParticipantListProps) {
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
@@ -43,7 +45,7 @@ export function ParticipantList({
 
   return (
     <div className="space-y-4">
-      <InviteCard onShare={handleShare} />
+      {!isClosed && <InviteCard onShare={handleShare} />}
 
       <div className="space-y-2">
         {participants.map((participant) => (

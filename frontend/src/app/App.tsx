@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Home } from '../components/Home';
 import { Order } from '../components/Order';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Toast } from '../components/ui/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { useTelegram } from '../hooks/useTelegram';
 import { ORDERS_QUERY_KEY, useOrders } from '../hooks/useOrders';
@@ -36,6 +37,7 @@ function AppContent() {
   const { initData, user } = useTelegram();
   const [dismissedSettlementDebtId, setDismissedSettlementDebtId] = useState<string | null>(null);
   const [settlementActionDebtId, setSettlementActionDebtId] = useState<string | null>(null);
+  const [closedInviteWarningVisible, setClosedInviteWarningVisible] = useState(true);
   const orderIdFromUrl = useMemo(() => {
     const value = new URLSearchParams(window.location.search).get('orderId');
     if (!value) return null;
@@ -80,9 +82,15 @@ function AppContent() {
           (debt) => debt.debtId === settlementDebtId && debt.status === 'settlementRequested',
         )
       : undefined;
+  const orderIdToOpenFromUrl = auth.data?.order ? orderIdFromUrl : null;
+  const showClosedInviteWarning =
+    closedInviteWarningVisible &&
+    orderIdFromUrl !== null &&
+    !!auth.data &&
+    !auth.data.order;
 
   const orderScreen = useCurrentOrder({
-    orderIdFromUrl,
+    orderIdFromUrl: orderIdToOpenFromUrl,
     ordersLoaded: !isLoading,
     loadOrder,
     refreshOrder,
@@ -192,6 +200,15 @@ function AppContent() {
             });
         }}
       />
+
+      {showClosedInviteWarning && (
+        <Toast
+          message="Нельзя зайти в закрытый заказ"
+          variant="error"
+          onClose={() => setClosedInviteWarningVisible(false)}
+          duration={5000}
+        />
+      )}
     </div>
   );
 }

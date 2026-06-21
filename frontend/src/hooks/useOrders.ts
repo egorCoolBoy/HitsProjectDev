@@ -17,7 +17,12 @@ export function useOrders(currentUserId: number | null, currentOrderRole: OrderD
     queryKey: [ORDERS_QUERY_KEY, currentUserId],
     queryFn: async () => {
       const apiOrders = await orderService.list();
-      return apiOrders.map((order) => mapOrderToData(order, currentUserId, [], [], currentOrderRole));
+      return Promise.all(
+        apiOrders.map(async (order) => {
+          const expenses = await orderService.listExpenses(order.id);
+          return mapOrderToData(order, currentUserId, expenses, [], currentOrderRole);
+        }),
+      );
     },
     enabled: !!currentUserId,
   });

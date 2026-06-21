@@ -69,6 +69,20 @@ public sealed class AuthService : IAuthService
                 throw new OrderNotFoundException(orderId);
             }
 
+            if (order.IsClosed)
+            {
+                var closedOrderToken = _jwtTokenService.CreateToken(user.Id);
+                var closedOrderResponse = new AuthTelegramResponse
+                {
+                    Token = closedOrderToken,
+                    User = UserResponse.From(user),
+                    Order = null
+                };
+
+                closedOrderResponse.User.PhotoUrl = telegramUser.PhotoUrl;
+                return closedOrderResponse;
+            }
+
             var membership = await _dbContext.OrderUsers
                 .FirstOrDefaultAsync(item => item.UserId == user.Id && item.OrderId == orderId);
 
