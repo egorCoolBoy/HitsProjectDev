@@ -93,7 +93,7 @@ export function Home({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f5f5f5]">
+    <div className="h-full overflow-hidden flex flex-col bg-[#f5f5f5]">
       <header className="bg-gradient-to-br from-[#0088cc] to-[#0066aa] text-white p-4 shadow-md">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div>

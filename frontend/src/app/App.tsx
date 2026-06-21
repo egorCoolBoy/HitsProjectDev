@@ -123,7 +123,7 @@ function AppContent() {
   }
 
   return (
-    <div className="size-full bg-[#f5f5f5]">
+    <div className="size-full overflow-hidden bg-[#f5f5f5]">
       {orderScreen.isOnHome ? (
         <Home
           userProfile={userProfile}

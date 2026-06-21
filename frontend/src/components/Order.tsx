@@ -134,7 +134,7 @@ export function Order({
       onRequestEditItem={(itemId) => setEditItemId(itemId)}
       onClosedAction={() => setClosedAlertOpen(true)}
     >
-      <div className="min-h-screen flex flex-col bg-[#f5f5f5]">
+      <div className="h-full overflow-hidden flex flex-col bg-[#f5f5f5]">
         <header className="bg-[#0088cc] text-white p-4 shadow-md">
           <div className="max-w-md mx-auto">
             <div className="flex items-center gap-3 mb-2">
