@@ -23,4 +23,6 @@ public interface IOrderRealtimeNotifier
     Task PaymentDeletedAsync(long orderId, long actorUserId, long paymentId, long paymentUserId);
 
     Task DebtsChangedAsync(long orderId, long actorUserId, IEnumerable<long> userIds);
+
+    Task OrderStatusChangedAsync(long orderId, long actorUserId, bool isClosed, IEnumerable<long> userIds);
 }

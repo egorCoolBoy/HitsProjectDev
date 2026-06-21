@@ -12,6 +12,7 @@ const ORDER_EVENTS = [
   'paymentCreated',
   'paymentUpdated',
   'paymentDeleted',
+  'orderStatusChanged',
 ] as const;
 
 type UseOrderRealtimeParams = {

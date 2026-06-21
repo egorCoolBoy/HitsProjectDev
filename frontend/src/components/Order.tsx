@@ -22,6 +22,7 @@ export type OrderActions = {
   onCreateInviteLink: (orderId: string) => Promise<string>;
   onAddExpense: (payload: ExpenseInput) => Promise<void>;
   onImportReceipt: (file: File) => Promise<void>;
+  onRefreshOrder: () => void;
   onUpdateExpense: (expenseId: string, payload: ExpenseInput) => Promise<void>;
   onDeleteExpense: (expenseId: string) => Promise<void>;
   onUpdatePayment: (participantId: string, amount: number) => Promise<void>;
@@ -48,6 +49,7 @@ export function Order({
   onCreateInviteLink,
   onAddExpense,
   onImportReceipt,
+  onRefreshOrder,
   onUpdateExpense,
   onDeleteExpense,
   onUpdatePayment,
@@ -119,6 +121,11 @@ export function Order({
     void importReceiptFile(file);
   };
 
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    onRefreshOrder();
+  };
+
   return (
     <OrderProvider
       order={order}
@@ -151,7 +158,7 @@ export function Order({
             {TABS.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`flex-1 py-3 px-4 font-medium transition-colors relative ${
                   activeTab === tab.id ? 'text-[#0088cc]' : 'text-gray-500'
                 }`}

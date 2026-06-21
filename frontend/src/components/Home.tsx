@@ -23,6 +23,8 @@ type HomeProps = {
   onOpenOrder: (orderId: string) => void;
   onDeleteOrder: (orderId: string) => void;
   onRequestDebtSettlement: (debtId: string) => Promise<void>;
+  onRefreshOrders: () => void;
+  onRefreshDebts: () => void;
 };
 
 export function Home({
@@ -34,6 +36,8 @@ export function Home({
   onOpenOrder,
   onDeleteOrder,
   onRequestDebtSettlement,
+  onRefreshOrders,
+  onRefreshDebts,
 }: HomeProps) {
   const fallbackDebts = collectUserDebts(orders, currentUserId);
   const { myDebts, myCredits } = backendDebts ?? fallbackDebts;
@@ -48,6 +52,26 @@ export function Home({
   const closedOrders = orders.filter((order) => order.isClosed);
   const visibleOrders = activeOrderTab === 'open' ? openOrders : closedOrders;
   const visibleDebts = activeDebtTab === 'debtors' ? myCredits : myDebts;
+
+  const handleMainTabChange = (tab: 'orders' | 'debts') => {
+    setActiveMainTab(tab);
+
+    if (tab === 'orders') {
+      onRefreshOrders();
+    } else {
+      onRefreshDebts();
+    }
+  };
+
+  const handleOrderTabChange = (tab: 'open' | 'closed') => {
+    setActiveOrderTab(tab);
+    onRefreshOrders();
+  };
+
+  const handleDebtTabChange = (tab: 'debtors' | 'creditors') => {
+    setActiveDebtTab(tab);
+    onRefreshDebts();
+  };
 
   const handleCreateSubmit = async (values: Record<string, string>) => {
     const title = values.title?.trim();
@@ -93,7 +117,7 @@ export function Home({
               { id: 'debts', label: 'Долги' },
             ]}
             activeTab={activeMainTab}
-            onChange={setActiveMainTab}
+            onChange={handleMainTabChange}
           />
 
           {activeMainTab === 'orders' ? (
@@ -104,7 +128,7 @@ export function Home({
                   { id: 'closed', label: `Закрытые (${closedOrders.length})` },
                 ]}
                 activeTab={activeOrderTab}
-                onChange={setActiveOrderTab}
+                onChange={handleOrderTabChange}
               />
 
               {visibleOrders.length > 0 ? (
@@ -143,7 +167,7 @@ export function Home({
                   { id: 'creditors', label: `Кредиторы (${myDebts.length})` },
                 ]}
                 activeTab={activeDebtTab}
-                onChange={setActiveDebtTab}
+                onChange={handleDebtTabChange}
               />
 
               {visibleDebts.length > 0 ? (

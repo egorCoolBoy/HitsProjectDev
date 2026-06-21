@@ -131,6 +131,16 @@ export function useCurrentOrder({
     [applyServerOrder, currentOrder, updatePayment],
   );
 
+  const handleRefreshCurrentOrder = useCallback(() => {
+    if (!currentOrder) return;
+
+    refreshOrder(currentOrder.id)
+      .then(applyServerOrder)
+      .catch((error) => {
+        console.warn('Failed to refresh current order', error);
+      });
+  }, [applyServerOrder, currentOrder, refreshOrder]);
+
   const handleCloseOrder = useCallback(async () => {
     if (!currentOrder) return;
     await closeOrder(currentOrder);
@@ -161,6 +171,7 @@ export function useCurrentOrder({
     updateExpense: handleUpdateExpense,
     deleteExpense: handleDeleteExpense,
     updatePayment: handleUpdatePayment,
+    refreshCurrentOrder: handleRefreshCurrentOrder,
     closeOrder: handleCloseOrder,
     createInviteLink: handleCreateInviteLink,
   };

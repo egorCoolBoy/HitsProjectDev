@@ -345,6 +345,11 @@ public sealed class DebtsChangedPayload
     public long OrderId { get; set; }
 }
 
+public sealed class OrderStatusChangedPayload
+{
+    public bool IsClosed { get; set; }
+}
+
 public sealed class CalculateOrderDebtsRequest
 {
     public IReadOnlyList<ParticipantPaymentRequest> Payments { get; set; } = Array.Empty<ParticipantPaymentRequest>();

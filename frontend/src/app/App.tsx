@@ -5,7 +5,7 @@ import { Order } from '../components/Order';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useAuth } from '../hooks/useAuth';
 import { useTelegram } from '../hooks/useTelegram';
-import { useOrders } from '../hooks/useOrders';
+import { ORDERS_QUERY_KEY, useOrders } from '../hooks/useOrders';
 import { useCurrentOrder } from '../hooks/useCurrentOrder';
 import { MY_DEBTS_QUERY_KEY, useMyDebts } from '../hooks/useMyDebts';
 import { useDebtRealtime } from '../hooks/useDebtRealtime';
@@ -70,6 +70,9 @@ function AppContent() {
   const refreshMyDebts = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] });
   }, [currentUserId]);
+  const refreshMyOrders = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [ORDERS_QUERY_KEY, currentUserId] });
+  }, [currentUserId]);
   const settlementDebtId = debtIdFromUrl?.toString() ?? null;
   const confirmDebt =
     settlementDebtId && dismissedSettlementDebtId !== settlementDebtId
@@ -90,6 +93,7 @@ function AppContent() {
   useDebtRealtime({
     enabled: !!currentUserId,
     onDebtsChanged: refreshMyDebts,
+    onOrdersChanged: refreshMyOrders,
   });
 
   if (auth.isPending) return <LoadingScreen message={UI_MESSAGES.LOADING} />;
@@ -130,6 +134,8 @@ function AppContent() {
             await orderService.requestDebtSettlement(parseInt(debtId, 10));
             await queryClient.invalidateQueries({ queryKey: [MY_DEBTS_QUERY_KEY, currentUserId] });
           }}
+          onRefreshOrders={refreshMyOrders}
+          onRefreshDebts={refreshMyDebts}
         />
       ) : (
         <Order
@@ -140,6 +146,7 @@ function AppContent() {
           onCreateInviteLink={orderScreen.createInviteLink}
           onAddExpense={orderScreen.addExpense}
           onImportReceipt={orderScreen.importReceipt}
+          onRefreshOrder={orderScreen.refreshCurrentOrder}
           onUpdateExpense={orderScreen.updateExpense}
           onDeleteExpense={orderScreen.deleteExpense}
           onUpdatePayment={orderScreen.updatePayment}

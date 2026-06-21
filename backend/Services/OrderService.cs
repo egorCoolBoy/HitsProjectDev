@@ -236,6 +236,11 @@ public sealed class OrderService : IOrderService
 
         order.IsClosed = true;
         await _dbContext.SaveChangesAsync();
+        await _realtimeNotifier.OrderStatusChangedAsync(
+            orderId,
+            userId,
+            order.IsClosed,
+            order.OrderUsers.Select(item => item.UserId));
 
         return OrderResponse.From(order);
     }

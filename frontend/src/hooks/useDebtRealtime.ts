@@ -4,9 +4,10 @@ import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 type UseDebtRealtimeParams = {
   enabled: boolean;
   onDebtsChanged: () => void;
+  onOrdersChanged?: () => void;
 };
 
-export function useDebtRealtime({ enabled, onDebtsChanged }: UseDebtRealtimeParams) {
+export function useDebtRealtime({ enabled, onDebtsChanged, onOrdersChanged }: UseDebtRealtimeParams) {
   useEffect(() => {
     if (!enabled) return;
 
@@ -19,6 +20,9 @@ export function useDebtRealtime({ enabled, onDebtsChanged }: UseDebtRealtimePara
       .build();
 
     connection.on('debtsChanged', onDebtsChanged);
+    if (onOrdersChanged) {
+      connection.on('orderStatusChanged', onOrdersChanged);
+    }
 
     connection.start().catch((error) => {
       console.warn('SignalR debt connection failed', error);
@@ -26,7 +30,10 @@ export function useDebtRealtime({ enabled, onDebtsChanged }: UseDebtRealtimePara
 
     return () => {
       connection.off('debtsChanged', onDebtsChanged);
+      if (onOrdersChanged) {
+        connection.off('orderStatusChanged', onOrdersChanged);
+      }
       connection.stop().catch(() => undefined);
     };
-  }, [enabled, onDebtsChanged]);
+  }, [enabled, onDebtsChanged, onOrdersChanged]);
 }

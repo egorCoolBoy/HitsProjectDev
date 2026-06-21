@@ -94,6 +94,27 @@ public sealed class OrderRealtimeNotifier : IOrderRealtimeNotifier
             });
     }
 
+    public Task OrderStatusChangedAsync(long orderId, long actorUserId, bool isClosed, IEnumerable<long> userIds)
+    {
+        var groups = userIds
+            .Distinct()
+            .Select(OrderRealtimeGroups.User)
+            .ToList();
+
+        return _hubContext.Clients
+            .Groups(groups)
+            .SendAsync("orderStatusChanged", new OrderRealtimeEvent<OrderStatusChangedPayload>
+            {
+                OrderId = orderId,
+                ActorUserId = actorUserId,
+                OccurredAt = DateTimeOffset.UtcNow,
+                Payload = new OrderStatusChangedPayload
+                {
+                    IsClosed = isClosed
+                }
+            });
+    }
+
     private Task SendAsync<TPayload>(long orderId, string eventName, long actorUserId, TPayload payload)
     {
         return _hubContext.Clients
