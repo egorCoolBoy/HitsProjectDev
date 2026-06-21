@@ -40,6 +40,7 @@ public sealed class AppDbContext : DbContext
         {
             entity.ToTable("order_expenses");
             entity.Property(item => item.Price).HasPrecision(18, 2);
+            entity.Property(item => item.Quantity).HasPrecision(18, 3);
         });
 
         modelBuilder.Entity<OrderExpenseUser>(entity =>

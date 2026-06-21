@@ -10,5 +10,5 @@ export function isValidPortion(portion: string | number): boolean {
 }
 
 export function isValidQuantity(quantity: number): boolean {
-  return Number.isInteger(quantity) && quantity > 0;
+  return !Number.isNaN(quantity) && quantity > 0;
 }

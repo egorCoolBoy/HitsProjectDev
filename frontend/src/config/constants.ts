@@ -29,7 +29,7 @@ export const UI_MESSAGES = {
   CONFIRM_LAST_PARTICIPANT: 'Нельзя удалить последнего участника',
   ALERT_ORDER_CLOSED: 'Счёт закрыт. Изменения невозможны.',
   ALERT_INVALID_PRICE: 'Введите корректную цену',
-  ALERT_INVALID_QUANTITY: 'Введите корректное количество (целое число больше 0)',
+  ALERT_INVALID_QUANTITY: 'Введите корректное количество больше 0',
   ALERT_INVITE_LINK_ERROR: 'Не удалось создать ссылку приглашения',
   ALERT_INVITE_LINK_COPIED: 'Ссылка скопирована в буфер обмена!',
   ERROR_BACKEND_NO_URL: 'Backend не вернул ссылку приглашения',
@@ -48,7 +48,7 @@ export const DEFAULT_VALUES = {
   PORTION_STEP: '0.01',
   PRICE_STEP: '0.01',
   QUANTITY_DEFAULT: '1',
-  QUANTITY_STEP: '1',
+  QUANTITY_STEP: '0.001',
 } as const;
 
 /** Input validation rules */

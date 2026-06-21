@@ -44,7 +44,7 @@ export function parseExpenseForm(
 ): { data: ExpenseFormData } | { error: string } {
   const title = values.title?.trim();
   const price = parseFloat(values.price);
-  const quantity = parseInt(values.quantity, 10);
+  const quantity = parseFloat(values.quantity);
 
   if (!title) {
     return { error: 'Введите название позиции' };

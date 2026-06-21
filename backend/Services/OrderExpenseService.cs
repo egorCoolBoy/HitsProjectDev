@@ -99,8 +99,8 @@ public sealed class OrderExpenseService : IOrderExpenseService
             {
                 OrderId = orderId,
                 Title = item.Name,
-                Price = item.Total,
-                Quantity = 1,
+                Price = item.Price,
+                Quantity = item.Quantity,
                 CreatedAt = now,
                 UpdatedAt = now
             })
@@ -353,7 +353,7 @@ public sealed class OrderExpenseService : IOrderExpenseService
         }
     }
 
-    private static void ValidateRequest(string? title, decimal price, int quantity)
+    private static void ValidateRequest(string? title, decimal price, decimal quantity)
     {
         if (string.IsNullOrWhiteSpace(title))
         {

@@ -35,7 +35,7 @@ public sealed class CreateOrderExpenseRequest
 
     public decimal Price { get; set; }
 
-    public int Quantity { get; set; } = 1;
+    public decimal Quantity { get; set; } = 1;
 }
 
 public sealed class UpdateOrderExpenseRequest
@@ -44,7 +44,7 @@ public sealed class UpdateOrderExpenseRequest
 
     public decimal Price { get; set; }
 
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
 }
 
 public sealed class ToggleOrderExpenseParticipationRequest
@@ -224,7 +224,7 @@ public sealed class OrderExpenseResponse
 
     public decimal Price { get; set; }
 
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
 
     public decimal TotalPrice { get; set; }
 

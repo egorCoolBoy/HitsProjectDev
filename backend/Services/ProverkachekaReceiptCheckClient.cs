@@ -57,9 +57,22 @@ public sealed class ProverkachekaReceiptCheckClient : IReceiptCheckClient
         }
 
         return items
-            .Where(item => !string.IsNullOrWhiteSpace(item.Name) && item.Sum > 0)
-            .Select(item => new ReceiptCheckItem(item.Name!.Trim(), decimal.Round(item.Sum / 100m, 2)))
+            .Where(item => !string.IsNullOrWhiteSpace(item.Name) && item.Sum > 0 && item.Quantity > 0)
+            .Select(item => new ReceiptCheckItem(
+                item.Name!.Trim(),
+                GetItemPrice(item),
+                decimal.Round(item.Quantity, 3)))
             .ToList();
+    }
+
+    private static decimal GetItemPrice(ProverkachekaItem item)
+    {
+        if (item.Price > 0)
+        {
+            return decimal.Round(item.Price / 100m, 2);
+        }
+
+        return decimal.Round(item.Sum / item.Quantity / 100m, 2);
     }
 
     private static string GetApiErrorMessage(int code)
@@ -99,6 +112,12 @@ public sealed class ProverkachekaReceiptCheckClient : IReceiptCheckClient
     {
         [JsonPropertyName("name")]
         public string? Name { get; set; }
+
+        [JsonPropertyName("price")]
+        public decimal Price { get; set; }
+
+        [JsonPropertyName("quantity")]
+        public decimal Quantity { get; set; }
 
         [JsonPropertyName("sum")]
         public decimal Sum { get; set; }
