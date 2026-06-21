@@ -58,6 +58,7 @@ if (string.IsNullOrWhiteSpace(jwtOptions.Key))
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<TelegramOptions>(builder.Configuration.GetSection("Telegram"));
+builder.Services.Configure<ProverkachekaOptions>(builder.Configuration.GetSection("Proverkacheka"));
 builder.Services.AddSingleton<ITelegramInitDataValidator, TelegramInitDataValidator>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -74,6 +75,15 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IDebtCalculationService, DebtCalculationService>();
 builder.Services.AddScoped<IDebtService, DebtService>();
 builder.Services.AddScoped<IOrderRealtimeNotifier, OrderRealtimeNotifier>();
+builder.Services.AddHttpClient<IReceiptCheckClient, ProverkachekaReceiptCheckClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider
+        .GetRequiredService<Microsoft.Extensions.Options.IOptions<ProverkachekaOptions>>()
+        .Value;
+
+    client.BaseAddress = new Uri(options.BaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(45);
+});
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

@@ -32,6 +32,14 @@ public sealed class OrderExpenseNotFoundException : Exception
     }
 }
 
+public sealed class ReceiptImportException : Exception
+{
+    public ReceiptImportException(string message)
+        : base(message)
+    {
+    }
+}
+
 public sealed class OrderParticipantNotFoundException : Exception
 {
     public OrderParticipantNotFoundException(long orderId, long userId)

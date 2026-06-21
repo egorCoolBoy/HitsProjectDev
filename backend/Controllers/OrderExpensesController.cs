@@ -88,6 +88,41 @@ public sealed class OrderExpensesController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("receipt")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ImportReceiptExpensesResponse>> ImportReceipt(
+        long orderId,
+        [FromForm] IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _orderExpenseService.ImportReceiptAsync(User.GetUserId(), orderId, file, cancellationToken);
+            return Ok(result);
+        }
+        catch (OrderNotFoundException exception)
+        {
+            return NotFound(new { message = exception.Message });
+        }
+        catch (OrderAccessDeniedException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (ReceiptImportException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Problem(exception.Message);
+        }
+    }
+
+    [Authorize]
     [HttpPatch("{expenseId:long}")]
     public async Task<ActionResult<OrderExpenseResponse>> Update(long orderId, long expenseId, [FromBody] UpdateOrderExpenseRequest request)
     {
