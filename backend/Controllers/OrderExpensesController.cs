@@ -90,6 +90,8 @@ public sealed class OrderExpensesController : ControllerBase
     [Authorize]
     [HttpPost("receipt")]
     [Consumes("multipart/form-data")]
+    [RequestSizeLimit(25 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 25 * 1024 * 1024)]
     public async Task<ActionResult<ImportReceiptExpensesResponse>> ImportReceipt(
         long orderId,
         [FromForm] IFormFile file,

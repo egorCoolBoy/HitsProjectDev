@@ -26,5 +26,5 @@ public sealed class ProverkachekaOptions
 
     public string BaseUrl { get; set; } = "https://proverkacheka.com";
 
-    public long MaxReceiptImageBytes { get; set; } = 10 * 1024 * 1024;
+    public long MaxReceiptImageBytes { get; set; } = 25 * 1024 * 1024;
 }
