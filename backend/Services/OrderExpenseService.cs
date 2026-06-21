@@ -1,19 +1,37 @@
 using BackHits.Contracts;
 using BackHits.Data;
 using BackHits.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace BackHits.Services;
 
 public sealed class OrderExpenseService : IOrderExpenseService
 {
+    private static readonly HashSet<string> AllowedReceiptImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp"
+    };
+
     private readonly AppDbContext _dbContext;
     private readonly IOrderRealtimeNotifier _realtimeNotifier;
+    private readonly IReceiptCheckClient _receiptCheckClient;
+    private readonly ProverkachekaOptions _proverkachekaOptions;
 
-    public OrderExpenseService(AppDbContext dbContext, IOrderRealtimeNotifier realtimeNotifier)
+    public OrderExpenseService(
+        AppDbContext dbContext,
+        IOrderRealtimeNotifier realtimeNotifier,
+        IReceiptCheckClient receiptCheckClient,
+        IOptions<ProverkachekaOptions> proverkachekaOptions)
     {
         _dbContext = dbContext;
         _realtimeNotifier = realtimeNotifier;
+        _receiptCheckClient = receiptCheckClient;
+        _proverkachekaOptions = proverkachekaOptions.Value;
     }
 
     public async Task<IReadOnlyList<OrderExpenseResponse>> GetAllAsync(long userId, long orderId)
@@ -57,6 +75,51 @@ public sealed class OrderExpenseService : IOrderExpenseService
         await _realtimeNotifier.ExpenseCreatedAsync(orderId, userId, response);
 
         return response;
+    }
+
+    public async Task<ImportReceiptExpensesResponse> ImportReceiptAsync(
+        long userId,
+        long orderId,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var order = await GetOrderWithAccessAsync(userId, orderId);
+        EnsureMutable(order);
+        ValidateReceiptImage(file, _proverkachekaOptions.MaxReceiptImageBytes);
+
+        var receiptItems = await _receiptCheckClient.GetItemsFromReceiptImageAsync(file, cancellationToken);
+        if (receiptItems.Count == 0)
+        {
+            throw new ReceiptImportException("Receipt does not contain importable items.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var expenses = receiptItems
+            .Select(item => new OrderExpense
+            {
+                OrderId = orderId,
+                Title = item.Name,
+                Price = item.Total,
+                Quantity = 1,
+                CreatedAt = now,
+                UpdatedAt = now
+            })
+            .ToList();
+
+        _dbContext.OrderExpenses.AddRange(expenses);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var responseItems = await MapExpensesAsync(userId, expenses);
+        foreach (var expense in responseItems)
+        {
+            await _realtimeNotifier.ExpenseCreatedAsync(orderId, userId, expense);
+        }
+
+        return new ImportReceiptExpensesResponse
+        {
+            ImportedCount = responseItems.Count,
+            Expenses = responseItems
+        };
     }
 
     public async Task<OrderExpenseResponse> UpdateAsync(long userId, long orderId, long expenseId, UpdateOrderExpenseRequest request)
@@ -305,6 +368,35 @@ public sealed class OrderExpenseService : IOrderExpenseService
         if (quantity <= 0)
         {
             throw new ArgumentException("Expense quantity must be greater than zero.");
+        }
+    }
+
+    private static void ValidateReceiptImage(IFormFile? file, long maxBytes)
+    {
+        if (file is null)
+        {
+            throw new ArgumentException("Receipt image file is required.");
+        }
+
+        if (file.Length <= 0)
+        {
+            throw new ArgumentException("Receipt image file is empty.");
+        }
+
+        if (file.Length > maxBytes)
+        {
+            throw new ArgumentException($"Receipt image file must not exceed {maxBytes / 1024 / 1024} MB.");
+        }
+
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Receipt file must be an image.");
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension) || !AllowedReceiptImageExtensions.Contains(extension))
+        {
+            throw new ArgumentException("Receipt image must be a JPG, PNG, or WEBP file.");
         }
     }
 

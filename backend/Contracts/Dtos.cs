@@ -260,6 +260,13 @@ public sealed class OrderExpenseResponse
     }
 }
 
+public sealed class ImportReceiptExpensesResponse
+{
+    public int ImportedCount { get; set; }
+
+    public IReadOnlyList<OrderExpenseResponse> Expenses { get; set; } = Array.Empty<OrderExpenseResponse>();
+}
+
 public sealed class ParticipantPaymentRequest
 {
     public long UserId { get; set; }

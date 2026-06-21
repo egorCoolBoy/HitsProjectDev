@@ -19,3 +19,12 @@ public sealed class TelegramOptions
 
     public int InitDataMaxAgeMinutes { get; set; } = 1440;
 }
+
+public sealed class ProverkachekaOptions
+{
+    public string Token { get; set; } = string.Empty;
+
+    public string BaseUrl { get; set; } = "https://proverkacheka.com";
+
+    public long MaxReceiptImageBytes { get; set; } = 10 * 1024 * 1024;
+}
