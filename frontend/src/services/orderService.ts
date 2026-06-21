@@ -1,5 +1,6 @@
 import api from './api';
 import type {
+  ApiImportReceiptExpenses,
   ApiMyDebts,
   ApiOrder,
   ApiOrderExpense,
@@ -112,6 +113,17 @@ const orderService = {
 
   createExpense: async (orderId: number, payload: CreateExpensePayload) => {
     const response = await api.post<ApiOrderExpense>(`/orders/${orderId}/expenses`, payload);
+    return response.data;
+  },
+
+  importReceipt: async (orderId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post<ApiImportReceiptExpenses>(
+      `/orders/${orderId}/expenses/receipt`,
+      formData,
+    );
     return response.data;
   },
 

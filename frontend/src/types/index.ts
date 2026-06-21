@@ -93,6 +93,11 @@ export interface ApiOrderExpense {
   updatedAt: string;
 }
 
+export interface ApiImportReceiptExpenses {
+  importedCount: number;
+  expenses: ApiOrderExpense[];
+}
+
 export interface ApiPayment {
   id: number;
   orderId: number;

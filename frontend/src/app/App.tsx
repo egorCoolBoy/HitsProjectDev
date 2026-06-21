@@ -139,6 +139,7 @@ function AppContent() {
           onBack={orderScreen.closeOrderView}
           onCreateInviteLink={orderScreen.createInviteLink}
           onAddExpense={orderScreen.addExpense}
+          onImportReceipt={orderScreen.importReceipt}
           onUpdateExpense={orderScreen.updateExpense}
           onDeleteExpense={orderScreen.deleteExpense}
           onUpdatePayment={orderScreen.updatePayment}
