@@ -28,7 +28,7 @@ export function useCurrentOrder({
   const [currentOrder, setCurrentOrder] = useState<OrderData | null>(null);
   const inviteHandled = useRef(false);
 
-  const { addExpense, updateExpense, deleteExpense, updatePayment, closeOrder, syncOrderChanges } =
+  const { addExpense, importReceipt, updateExpense, deleteExpense, updatePayment, closeOrder, syncOrderChanges } =
     useOrderMutations(refreshOrder);
   const currentOrderId = currentOrder?.id ?? null;
 
@@ -104,6 +104,15 @@ export function useCurrentOrder({
     [applyServerOrder, currentOrder, updateExpense],
   );
 
+  const handleImportReceipt = useCallback(
+    async (file: File) => {
+      if (!currentOrder) return;
+      const refreshed = await importReceipt(currentOrder.id, file);
+      applyServerOrder(refreshed);
+    },
+    [applyServerOrder, currentOrder, importReceipt],
+  );
+
   const handleDeleteExpense = useCallback(
     async (expenseId: string) => {
       if (!currentOrder) return;
@@ -148,6 +157,7 @@ export function useCurrentOrder({
     },
     updateOrder,
     addExpense: handleAddExpense,
+    importReceipt: handleImportReceipt,
     updateExpense: handleUpdateExpense,
     deleteExpense: handleDeleteExpense,
     updatePayment: handleUpdatePayment,

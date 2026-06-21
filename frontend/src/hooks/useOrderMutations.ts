@@ -54,6 +54,14 @@ export function useOrderMutations(refreshOrder: (orderId: string) => Promise<Ord
     [refreshOrder],
   );
 
+  const importReceipt = useCallback(
+    async (orderId: string, file: File) => {
+      await orderService.importReceipt(parseNumericId(orderId), file);
+      return refreshOrder(orderId);
+    },
+    [refreshOrder],
+  );
+
   const updateExpense = useCallback(
     async (orderId: string, expenseId: string, payload: ExpenseInput) => {
       await orderService.updateExpense(parseNumericId(orderId), parseNumericId(expenseId), {
@@ -122,6 +130,7 @@ export function useOrderMutations(refreshOrder: (orderId: string) => Promise<Ord
 
   return {
     addExpense,
+    importReceipt,
     updateExpense,
     deleteExpense,
     updatePayment,

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import axios from 'axios';
 import { CreditCard, DollarSign, Lock, Users } from 'lucide-react';
 import {
   calculateOrderTotal,
@@ -30,16 +31,16 @@ export function Summary({
   onCloseOrder,
 }: SummaryProps) {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const paymentSyncTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const totals = calculateParticipantTotals(order);
   const grandTotal = calculateOrderTotal(order.items);
   const totalPaid = order.payments.reduce((sum, payment) => sum + payment.amount, 0);
-  const canShowCloseButton =
-    canCloseOrder &&
-    !order.isClosed &&
-    totals.some((total) => Math.abs(total.balance) > VALIDATION.PORTION_EPSILON);
+  const canShowCloseButton = canCloseOrder && !order.isClosed;
+  const hasPaymentTotalMismatch =
+    Math.abs(totalPaid - grandTotal) > VALIDATION.PORTION_EPSILON;
 
   const handlePaymentChange = (participantId: string, value: string) => {
     const amount = parseFloat(value) || 0;
@@ -109,7 +110,10 @@ export function Summary({
       {canShowCloseButton && (
         <FixedBottomBar>
           <button
-            onClick={() => setCloseDialogOpen(true)}
+            onClick={() => {
+              setCloseError(null);
+              setCloseDialogOpen(true);
+            }}
             className="w-full bg-[#0088cc] text-white rounded-xl py-3 px-4 font-semibold flex items-center justify-center gap-2 hover:bg-[#0077bb] transition-colors"
           >
             <Lock className="size-5" />
@@ -121,17 +125,27 @@ export function Summary({
       <CloseOrderConfirmationDialog
         open={closeDialogOpen}
         isClosing={isClosing}
+        error={closeError}
         onConfirm={async () => {
+          setCloseError(null);
+          if (hasPaymentTotalMismatch) {
+            setCloseError(UI_MESSAGES.ERROR_PAYMENT_TOTAL_MISMATCH);
+            return;
+          }
+
           setIsClosing(true);
           try {
             await onCloseOrder();
             setCloseDialogOpen(false);
+          } catch (error) {
+            setCloseError(getCloseOrderErrorMessage(error));
           } finally {
             setIsClosing(false);
           }
         }}
         onCancel={() => {
           if (isClosing) return;
+          setCloseError(null);
           setCloseDialogOpen(false);
         }}
       />
@@ -139,14 +153,31 @@ export function Summary({
   );
 }
 
+function getCloseOrderErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data;
+    if (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string') {
+      return data.message;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return UI_MESSAGES.ERROR_PAYMENT_TOTAL_MISMATCH;
+}
+
 function CloseOrderConfirmationDialog({
   open,
   isClosing,
+  error,
   onConfirm,
   onCancel,
 }: {
   open: boolean;
   isClosing: boolean;
+  error: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -154,6 +185,11 @@ function CloseOrderConfirmationDialog({
     <Modal open={open} onClose={onCancel} title="Подтверждение закрытия">
       <div className="space-y-4">
         <p className="text-sm text-gray-600">{UI_MESSAGES.CONFIRM_CLOSE_ORDER}</p>
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {error}
+          </p>
+        )}
         <div className="flex gap-3">
           <button
             type="button"
@@ -201,6 +237,10 @@ function TotalCard({ grandTotal, totalPaid }: { grandTotal: number; totalPaid: n
   );
 }
 
+function formatPaymentInputValue(paid: number): string {
+  return Math.abs(paid) < VALIDATION.PORTION_EPSILON ? '' : String(paid);
+}
+
 function ParticipantBalanceCard({
   participant,
   isClosed,
@@ -212,8 +252,14 @@ function ParticipantBalanceCard({
   canEditPayment: boolean;
   onPaymentChange: (participantId: string, value: string) => void;
 }) {
+  const [paymentInput, setPaymentInput] = useState<string | null>(null);
   const balanceAbs = Math.abs(participant.balance);
   const hasBalance = balanceAbs > VALIDATION.PORTION_EPSILON;
+  const displayPaymentValue = paymentInput ?? formatPaymentInputValue(participant.paid);
+
+  useEffect(() => {
+    setPaymentInput(null);
+  }, [participant.paid]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -250,8 +296,13 @@ function ParticipantBalanceCard({
               type="number"
               min="0"
               step="0.01"
-              value={participant.paid}
-              onChange={(event) => onPaymentChange(participant.id, event.target.value)}
+              value={displayPaymentValue}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setPaymentInput(nextValue);
+                onPaymentChange(participant.id, nextValue);
+              }}
+              onBlur={() => setPaymentInput(null)}
               disabled={isClosed || !canEditPayment}
               className="w-24 px-2 py-1 text-sm text-right border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0088cc] focus:border-transparent disabled:bg-gray-100"
               placeholder="0"
