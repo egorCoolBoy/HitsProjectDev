@@ -24,6 +24,8 @@ export const UI_MESSAGES = {
   CONFIRM_DELETE_ITEM: 'Удалить эту позицию?',
   CONFIRM_DELETE_PARTICIPANT: 'Удалить этого участника?',
   CONFIRM_CLOSE_ORDER: 'Закрыть счёт? После этого нельзя будет изменять заказ.',
+  ERROR_PAYMENT_TOTAL_MISMATCH:
+    'Сумма оплат не совпадает с суммой счёта. Проверьте введённые платежи.',
   CONFIRM_LAST_PARTICIPANT: 'Нельзя удалить последнего участника',
   ALERT_ORDER_CLOSED: 'Счёт закрыт. Изменения невозможны.',
   ALERT_INVALID_PRICE: 'Введите корректную цену',
