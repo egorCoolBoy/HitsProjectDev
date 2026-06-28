@@ -1,4 +1,4 @@
-import type { OrderItem, Participant } from '../types';
+import type { OrderItem } from '../types';
 
 /** Immutable update of a participant's portion on an order item */
 export function updateParticipantPortion(
@@ -36,21 +36,46 @@ export function updateParticipantPortion(
 export function splitItemEvenly(
   items: OrderItem[],
   itemId: string,
-  participants: Participant[],
 ): OrderItem[] {
-  if (participants.length === 0) return items;
-
-  const portionPerPerson = 1 / participants.length;
-
   return items.map((item) => {
     if (item.id !== itemId) return item;
+    if (item.participants.length === 0) return item;
+
+    const portionPerPerson = 1 / item.participants.length;
 
     return {
       ...item,
-      participants: participants.map((p) => ({
-        participantId: p.id,
+      participants: item.participants.map((participant) => ({
+        participantId: participant.participantId,
         portion: portionPerPerson,
       })),
+    };
+  });
+}
+
+/** Add/remove a participant and keep selected participants split evenly. */
+export function toggleParticipantParticipation(
+  items: OrderItem[],
+  itemId: string,
+  participantId: string,
+  isParticipating: boolean,
+): OrderItem[] {
+  return items.map((item) => {
+    if (item.id !== itemId) return item;
+
+    const selectedIds = item.participants.map((participant) => participant.participantId);
+    const nextIds = isParticipating
+      ? Array.from(new Set([...selectedIds, participantId]))
+      : selectedIds.filter((id) => id !== participantId);
+
+    if (nextIds.length === 0) {
+      return { ...item, participants: [] };
+    }
+
+    const portion = 1 / nextIds.length;
+    return {
+      ...item,
+      participants: nextIds.map((id) => ({ participantId: id, portion })),
     };
   });
 }

@@ -80,8 +80,35 @@ export function useCurrentOrder({
         return;
       }
 
-      const refreshed = await syncOrderChanges(currentOrder, updatedOrder);
-      setCurrentOrder(mergeClientOrderState(refreshed, updatedOrder));
+      const previousOrder = currentOrder;
+      setCurrentOrder(updatedOrder);
+
+      try {
+        const refreshed = await syncOrderChanges(previousOrder, updatedOrder);
+        setCurrentOrder((latest) => {
+          if (latest?.id !== updatedOrder.id) return latest;
+
+          // A newer checkbox/share edit is already visible; its request will
+          // reconcile the server response, so an older response must not win.
+          if (JSON.stringify(latest.items) !== JSON.stringify(updatedOrder.items)) {
+            return latest;
+          }
+
+          return mergeClientOrderState(refreshed, latest);
+        });
+      } catch (error) {
+        setCurrentOrder((latest) => {
+          if (
+            latest?.id !== previousOrder.id ||
+            JSON.stringify(latest.items) !== JSON.stringify(updatedOrder.items)
+          ) {
+            return latest;
+          }
+
+          return previousOrder;
+        });
+        throw error;
+      }
     },
     [currentOrder, syncOrderChanges],
   );

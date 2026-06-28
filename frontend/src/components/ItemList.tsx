@@ -84,10 +84,10 @@ function ItemCard({ item, participants, isClosed, onDeleteItem }: ItemCardProps)
         {participants.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-500">Кто ест (введите части от 0 до 1):</p>
+              <p className="text-xs text-gray-500">Отметьте, кто участвовал в затрате:</p>
               <button
                 onClick={() => splitItemEvenly(item.id)}
-                disabled={isClosed}
+                disabled={isClosed || item.participants.length === 0}
                 className="text-xs bg-[#0088cc] text-white px-2 py-1 rounded-lg hover:bg-[#0077bb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
               >
                 <Users className="size-3" />
@@ -101,6 +101,9 @@ function ItemCard({ item, participants, isClosed, onDeleteItem }: ItemCardProps)
                   participant={participant}
                   itemId={item.id}
                   portion={item.participants.find((p) => p.participantId === participant.id)?.portion ?? 0}
+                  isParticipating={item.participants.some(
+                    (p) => p.participantId === participant.id,
+                  )}
                   disabled={isClosed}
                 />
               ))}
@@ -118,11 +121,18 @@ type ParticipantInputProps = {
   participant: Participant;
   itemId: string;
   portion: number;
+  isParticipating: boolean;
   disabled: boolean;
 };
 
-function ParticipantInput({ participant, itemId, portion, disabled }: ParticipantInputProps) {
-  const { updatePortion } = useOrderContext();
+function ParticipantInput({
+  participant,
+  itemId,
+  portion,
+  isParticipating,
+  disabled,
+}: ParticipantInputProps) {
+  const { toggleParticipation, updatePortion } = useOrderContext();
   const [draft, setDraft] = useState(() => formatPortionDraft(portion));
   const isEditingRef = useRef(false);
 
@@ -134,8 +144,7 @@ function ParticipantInput({ participant, itemId, portion, disabled }: Participan
 
   const commitDraft = (value: string) => {
     if (value === '' || value === '.') {
-      setDraft('');
-      updatePortion(itemId, participant.id, 0);
+      setDraft(formatPortionDraft(portion));
       return;
     }
 
@@ -151,10 +160,20 @@ function ParticipantInput({ participant, itemId, portion, disabled }: Participan
 
   return (
     <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
-      <div className="flex items-center gap-2 flex-1">
+      <label className="flex items-center gap-2 flex-1 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={isParticipating}
+          disabled={disabled}
+          onChange={(event) =>
+            toggleParticipation(itemId, participant.id, event.target.checked)
+          }
+          className="size-4 accent-[#0088cc] disabled:cursor-not-allowed"
+          aria-label={`${participant.name}: участвует в затрате`}
+        />
         <ParticipantAvatar name={participant.name} color={participant.color} size="sm" />
         <span className="text-sm font-medium text-gray-800">{participant.name}</span>
-      </div>
+      </label>
 
       <input
         type="number"
@@ -170,9 +189,9 @@ function ParticipantInput({ participant, itemId, portion, disabled }: Participan
           isEditingRef.current = false;
           commitDraft(draft);
         }}
-        disabled={disabled}
+        disabled={disabled || !isParticipating}
         className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0088cc] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-        placeholder="0"
+        placeholder={isParticipating ? '0' : '—'}
       />
     </div>
   );

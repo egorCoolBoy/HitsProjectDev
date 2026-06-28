@@ -1,11 +1,16 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
-import { splitItemEvenly, updateParticipantPortion } from '../utils/orderEdits';
+import {
+  splitItemEvenly,
+  toggleParticipantParticipation,
+  updateParticipantPortion,
+} from '../utils/orderEdits';
 import type { OrderData } from '../types';
 
 type OrderContextValue = {
   order: OrderData;
   isClosed: boolean;
   updatePortion: (itemId: string, participantId: string, portion: number) => void;
+  toggleParticipation: (itemId: string, participantId: string, isParticipating: boolean) => void;
   splitItemEvenly: (itemId: string) => void;
   requestDeleteItem: (itemId: string) => void;
   requestEditItem: (itemId: string) => void;
@@ -48,7 +53,27 @@ export function OrderProvider({
       }
       onUpdateOrder({
         ...order,
-        items: splitItemEvenly(order.items, itemId, order.participants),
+        items: splitItemEvenly(order.items, itemId),
+      });
+    },
+    [onClosedAction, onUpdateOrder, order],
+  );
+
+  const toggleParticipation = useCallback(
+    (itemId: string, participantId: string, isParticipating: boolean) => {
+      if (order.isClosed) {
+        onClosedAction();
+        return;
+      }
+
+      onUpdateOrder({
+        ...order,
+        items: toggleParticipantParticipation(
+          order.items,
+          itemId,
+          participantId,
+          isParticipating,
+        ),
       });
     },
     [onClosedAction, onUpdateOrder, order],
@@ -81,11 +106,19 @@ export function OrderProvider({
       order,
       isClosed: order.isClosed,
       updatePortion,
+      toggleParticipation,
       splitItemEvenly: splitEvenly,
       requestDeleteItem,
       requestEditItem,
     }),
-    [order, splitEvenly, requestDeleteItem, requestEditItem, updatePortion],
+    [
+      order,
+      splitEvenly,
+      requestDeleteItem,
+      requestEditItem,
+      toggleParticipation,
+      updatePortion,
+    ],
   );
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;
